@@ -1,5 +1,3 @@
-/articles
-
 *~
 *.py[co]
 
@@ -26,11 +24,11 @@ pip-log.txt
 #Translations
 *.mo
 
-#Mr Developer
-.mr.developer.cfg
-
-newsdiffs.db
-database_settings.py
+/newsdiffs.db
+/articles
 
 /*.venv/
 /.idea/
+
+/config/*
+!/config/local-example.sh

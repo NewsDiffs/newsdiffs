@@ -2,11 +2,9 @@
 
 from datetime import datetime, timedelta
 import errno
-from frontend import models
 import httplib
 import logging
 import os
-import smtplib
 import subprocess
 import sys
 import textwrap
@@ -15,18 +13,17 @@ import traceback
 import urllib2
 
 import diff_match_patch
+from django.core.management.base import BaseCommand
+from django.db.models import Q
+from optparse import make_option
 
+from frontend import models
 import parsers
 from parsers.baseparser import canonicalize, formatter, logger
-
 from website import settings
 
 GIT_PROGRAM = 'git'
 ERROR_FILE_PATH = '/tmp/newsdiffs_logging_errs'
-
-from django.core.management.base import BaseCommand
-from django.db.models import Q
-from optparse import make_option
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
@@ -166,14 +163,14 @@ def make_new_git_repo(full_dir):
 
 def get_and_make_git_repo():
     result = time.strftime('%Y-%m', time.localtime())
-    full_path = models.GIT_DIR+result
+    full_path = os.path.join(models.ARTICLES_DIR_ROOT, result)
     if not os.path.exists(full_path+'/.git'):
         make_new_git_repo(full_path)
     return result
 
 def all_git_repos():
     import glob
-    return glob.glob(models.GIT_DIR+'*')
+    return glob.glob(os.path.join(models.ARTICLES_DIR_ROOT, '*'))
 
 def run_git_command(command, git_dir, max_timeout=15):
     """Run a git command like ['show', filename] and return the output.
@@ -255,8 +252,8 @@ def get_diff_info(old, new):
 def add_to_git_repo(data, filename, article):
     start_time = time.time()
 
-    #Don't use full path because it can exceed the maximum filename length
-    #full_path = os.path.join(models.GIT_DIR, filename)
+    # Don't use full path because it can exceed the maximum filename length
+    # full_path = os.path.join(models.ARTICLES_DIR_ROOT, filename)
     os.chdir(article.full_git_dir)
     mkdir_p(os.path.dirname(filename))
 
@@ -434,7 +431,7 @@ def update_versions(todays_repo, do_all=False):
     # it still happens and I don't run out of quota. =)
     logger.info('Starting with gc:')
     try:
-        run_git_command(['gc'], models.GIT_DIR + todays_repo)
+        run_git_command(['gc'], os.path.join(models.ARTICLES_DIR_ROOT, todays_repo))
     except subprocess.CalledProcessError as e:
         print >> sys.stderr, 'Error on initial gc!'
         print >> sys.stderr, 'Output was """'

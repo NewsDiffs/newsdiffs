@@ -46,7 +46,7 @@ scanned them recently, unless --all is passed.
 
 def migrate_versions():
     XXX_this_hasnt_been_updated_for_having_multiple_git_dirs
-    git_output = subprocess.check_output([GIT_PROGRAM, 'log'], cwd=models.GIT_DIR)
+    git_output = subprocess.check_output([GIT_PROGRAM, 'log'], cwd=models.ARTICLES_DIR_ROOT)
     commits = git_output.split('\n\ncommit ')
     commits[0] = commits[0][len('commit '):]
     print 'beginning loop'
@@ -63,7 +63,7 @@ def migrate_versions():
         date = datetime.strptime(' '.join(datestr.split()[1:-1]),
                                  '%a %b %d %H:%M:%S %Y')
 
-        if not os.path.exists(os.path.join(models.GIT_DIR,fname)): #file introduced accidentally
+        if not os.path.exists(os.path.join(models.ARTICLES_DIR_ROOT, fname)): #file introduced accidentally
             continue
 
         url = 'http://%s' % fname
@@ -86,7 +86,7 @@ def migrate_versions():
 
         text = subprocess.check_output([GIT_PROGRAM, 'show',
                                         v+':'+fname],
-                                       cwd=models.GIT_DIR)
+                                       cwd=models.ARTICLES_DIR_ROOT)
         text = text.decode('utf-8')
         (date2, title, byline) = text.splitlines()[:3]
 
@@ -146,7 +146,7 @@ def get_hash(version, filename):
     """Return the SHA1 hash of filename in a given version"""
     output = subprocess.check_output([GIT_PROGRAM, 'ls-tree', '-r',
                                       version, filename],
-                                     cwd=models.GIT_DIR)
+                                     cwd=models.ARTICLES_DIR_ROOT)
     return output.split()[2]
 
 def remove_duplicates():

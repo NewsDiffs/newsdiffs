@@ -27,7 +27,7 @@ $ sudo apt-get install git-core python-django python-django-south python-simplej
 ```
 
 On Mac OS, the easiest way may be to install pip:
-  http://www.pip-installer.org/en/latest/installing.html
+[http://www.pip-installer.org/en/latest/installing.html](http://www.pip-installer.org/en/latest/installing.html)
 and then
 
 ```
@@ -37,10 +37,30 @@ $ pip install Django
 Initial setup
 -------------
 
+newsdiffs depends upon several environment variables.
+`config/local-example.sh` contains example parameters to run the application locally.
+You can use these values as-is for a SQLite database or modify for your local 
+environment if you desire.  If you want to modify the values, please copy the
+contents to a new file rather than change the example.
+
 ```
-$ python website/manage.py syncdb && python website/manage.py migrate
+$ source config/local-example.sh
+$ python website/manage.py syncdb
+$ python website/manage.py migrate
 $ mkdir articles
 ```
+
+## Environment variables
+| Environment Variable| Description                              |
+| --------------------| -----------------------------------------|
+| `DJANGO_SECRET_KEY` | the secret key for Django operations     |
+| `ARTICLES_DIR_ROOT` | the directory where articles are stored. If not absolute, it will be relative to the Django project directory. | 
+| `DB_ENGINE`         | the Django database engine               |
+| `DB_HOST`           | the Django database Host                 |
+| `DB_PORT`           | the Django database port                 |
+| `DB_NAME`           | the Django database name                 |
+| `DB_USER`           | the Django database username             |
+| `DB_PASSWORD`       | the Django database password             |
 
 Running NewsDiffs Locally
 -------------------------
@@ -48,10 +68,10 @@ Running NewsDiffs Locally
 Do the initial setup above.  Then to start the webserver for testing:
 
 ```
-$ python website/manage.py runserver
+$ source config/local-example.sh && python website/manage.py runserver
 ```
 
-and visit http://localhost:8000/
+and visit [http://localhost:8000/](http://localhost:8000/)
 
 Running the scraper
 -------------------
@@ -77,7 +97,9 @@ some websites are parsed correctly in only one version.
 
 Then run
   
-```$ python website/manage.py scraper```
+```
+$ source config/local-example.sh && python website/manage.py scraper
+```
 
 This will populate the articles repository with a list of current news
 articles.  This is a snapshot at a single time, so the website will
@@ -92,9 +114,14 @@ is cumulative).
 
 To run the scraper every hour, run something like:
 
-```$ while true; do python website/manage.py scraper; sleep 60m; done```
+```
+$ while true; do python website/manage.py scraper; sleep 60m; done
+```
 
 or make a cron job.
+
+There is also a file `run_continuously.py` showing how you might continuously
+scrape the news.
 
 Adding new sites to the scraper
 -------------------------------

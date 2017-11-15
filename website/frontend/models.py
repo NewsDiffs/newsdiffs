@@ -1,4 +1,3 @@
-import re
 import subprocess
 import os
 from datetime import datetime, timedelta
@@ -6,9 +5,13 @@ from datetime import datetime, timedelta
 import json
 from django.db import models, IntegrityError
 
+import util
+
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
-GIT_DIR = ROOT_DIR+'/articles/'
+ARTICLES_DIR_ROOT = os.environ['ARTICLES_DIR_ROOT']
+if not os.path.isabs(ARTICLES_DIR_ROOT):
+    ARTICLES_DIR_ROOT = util.prepend_project_dir(ARTICLES_DIR_ROOT)
 
 GIT_PROGRAM = 'git'
 
@@ -17,12 +20,13 @@ def strip_prefix(string, prefix):
         string = string[len(prefix):]
     return string
 
-PublicationDict = {'www.nytimes.com': 'NYT',
-                   'edition.cnn.com': 'CNN',
-                   'www.bbc.co.uk': 'BBC',
-                   'www.politico.com': 'Politico',
-                   'www.washingtonpost.com': 'Washington Post',
-                   }
+PublicationDict = {
+    'www.nytimes.com': 'NYT',
+    'edition.cnn.com': 'CNN',
+    'www.bbc.co.uk': 'BBC',
+    'www.politico.com': 'Politico',
+    'www.washingtonpost.com': 'Washington Post',
+}
 
 ancient = datetime(1901, 1, 1)
 
@@ -40,7 +44,7 @@ class Article(models.Model):
 
     @property
     def full_git_dir(self):
-        return GIT_DIR + self.git_dir
+        return os.path.join(ARTICLES_DIR_ROOT, self.git_dir)
 
     def filename(self):
         ans = self.url.rstrip('/')

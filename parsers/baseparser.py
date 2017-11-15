@@ -2,6 +2,7 @@ import cookielib
 import logging
 import re
 import socket
+import ssl
 import sys
 import time
 import urllib2
@@ -40,14 +41,23 @@ def grab_url(url, max_depth=5, opener=None):
     except socket.timeout:
         logger.warn('Timed out while requesting {0} (timeout: {1})'.format(url, timeout))
         retry = True
+    except ssl.SSLError as ex:
+        if ex.message == 'The read operation timed out':
+            retry = True
+        else:
+            raise
+    except urllib2.HTTPError as ex:
+        # Service unavailable
+        if ex.code == 503:
+            retry = True
+        else:
+            raise
     if retry:
         if max_depth == 0:
             raise Exception('Too many attempts to download %s' % url)
         time.sleep(0.5)
         return grab_url(url, max_depth-1, opener)
     return text
-
-
 
 
 # Begin hot patch for https://bugs.launchpad.net/bugs/788986

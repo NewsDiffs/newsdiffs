@@ -1,28 +1,26 @@
-# Django settings for newsdiffer project.
+import logging
+import os
 
-import os.path
-
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', None) == 'True'
 TEMPLATE_DEBUG = DEBUG
 
-ADMINS = (
-     ('Eric Price', 'ecprice@mit.edu'),
-     ('Jennifer 8. Lee', 'jenny8lee@gmail.com'),
-     ('Gregory Price', 'price@mit.edu'),
-     ('Carl Gieringer', 'carl.gieringer@gmail.com'),
-)
-
+ADMINS = ()
 MANAGERS = ADMINS
-
-WEBAPP_ROOT = os.path.dirname(os.path.abspath(__file__))
+SERVER_EMAIL = "noreply@newsdiffs.org"
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.dirname(WEBAPP_ROOT)+'/newsdiffs.db',
+        'ENGINE': os.environ.get('DB_ENGINE', None),
+        'HOST': os.environ.get('DB_HOST', None),
+        'NAME': os.environ.get('DB_NAME', None),
+        'USER': os.environ.get('DB_USER', None),
+        'PASSWORD': os.environ.get('DB_PASSWORD', None),
     }
 }
 
+ALLOWED_HOSTS = [
+    '.newsdiffs.org',
+]
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -30,6 +28,8 @@ DATABASES = {
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
 TIME_ZONE = 'America/New_York'
+
+DATETIME_FORMAT = 'F j, Y, g:i a'
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -56,15 +56,21 @@ MEDIA_URL = ''
 ADMIN_MEDIA_PREFIX = '/media/'
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = '%p^2v#afb+ew#3en+%r55^gm4av_=e+s7w6a5(#ky92yp*56+l'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', None)
+if not SECRET_KEY:
+    message = 'DJANGO_SECRET_KEY is missing'
+    if DEBUG:
+        logging.warn(message)
+    else:
+        raise Exception(message)
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
-  'django.template.loaders.filesystem.Loader',
-  'django.template.loaders.app_directories.Loader',
-#    'django.template.loaders.filesystem.load_template_source',
-#    'django.template.loaders.app_directories.load_template_source',
-#     'django.template.loaders.eggs.load_template_source',
+    'django.template.loaders.filesystem.Loader',
+    'django.template.loaders.app_directories.Loader',
+    # 'django.template.loaders.filesystem.load_template_source',
+    # 'django.template.loaders.app_directories.load_template_source',
+    # 'django.template.loaders.eggs.load_template_source',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -87,3 +93,14 @@ INSTALLED_APPS = (
     'south',
     'frontend',
 )
+
+CACHES = {}
+if DEBUG:
+    CACHES['default'] = {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    }
+else:
+    CACHES['default'] = {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_table',
+    }
