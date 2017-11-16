@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
-import sys
-
 if __name__ == "__main__":
-    from django.core.management import execute_from_command_line
-    from util import configure_env
+    import os
+    import sys
 
-    configure_env()
+    from django.core.management import execute_from_command_line
+
+    import util
+
+    # util may depend upon logging, so set it up first
+    if 'LOG_FILE_PATH' in os.environ:
+        util.log_to_file(os.environ['LOG_FILE_PATH'], os.environ['LOG_LEVEL'])
+    util.configure_env()
 
     execute_from_command_line(sys.argv)

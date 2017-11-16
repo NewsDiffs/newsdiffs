@@ -1,5 +1,6 @@
-import logging
 import os
+
+from app_logging import logger
 
 DEBUG = os.environ.get('DJANGO_DEBUG', None) == 'True'
 TEMPLATE_DEBUG = DEBUG
@@ -60,7 +61,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', None)
 if not SECRET_KEY:
     message = 'DJANGO_SECRET_KEY is missing'
     if DEBUG:
-        logging.warn(message)
+        logger.warn(message)
     else:
         raise Exception(message)
 

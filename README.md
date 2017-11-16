@@ -23,7 +23,7 @@ You need to have installed on your local machine
 On a Debian- or Ubuntu-based system, it may suffice (untested) to run
 
 ```
-$ sudo apt-get install git-core python-django python-django-south python-simplejson
+$ sudo apt-get install git-core python-django python-django-south
 ```
 
 On Mac OS, the easiest way may be to install pip:
@@ -32,6 +32,20 @@ and then
 
 ```
 $ pip install Django
+```
+
+### Installing MySQL-python
+
+* https://stackoverflow.com/a/40592989/39396
+* https://github.com/PyMySQL/mysqlclient-python/issues/169
+
+Do something equivalent to the following (have the latest Homebrew mysql and 
+then follow the instructions from `brew info openssl` for installation): 
+
+```
+brew upgrade mysql
+brew upgrade openssl
+LDFLAGS=-L/usr/local/opt/openssl/lib CPPFLAGS=-I/usr/local/opt/openssl/include pip install MySQL-python
 ```
 
 Initial setup
@@ -61,6 +75,8 @@ $ mkdir articles
 | `DB_NAME`           | the Django database name                 |
 | `DB_USER`           | the Django database username             |
 | `DB_PASSWORD`       | the Django database password             |
+| `LOG_FILE_PATH`     | WSGI-only: the path to which to log      |
+| `LOG_FILE_LEVEL`    | WSGI-only: the level at which to log to file |
 
 Running NewsDiffs Locally
 -------------------------
@@ -107,10 +123,6 @@ not yet have any changes. To get changes, wait some time (say, 3
 hours) and run 'python website/manage.py scraper' again.  If any of
 the articles have changed in the intervening time, the website should
 display the associated changes.
-
-The scraper will log progress to /tmp/newsdiffs_logging (which is
-overwritten each run) and errors to /tmp/newsdiffs/logging_errs (which
-is cumulative).
 
 To run the scraper every hour, run something like:
 
