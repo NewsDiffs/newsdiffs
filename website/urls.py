@@ -11,13 +11,13 @@ ROOT_DIR = os.path.dirname(THIS_DIR)
 # admin.autodiscover()
 
 urlpatterns = [
-   url(r'^static/(?P<path>.*)$', 'django.views.static.serve', {
-            'document_root': ROOT_DIR+'/website/static',
-        }, name='static'),
-  url(r'^(assets/ico/)?favicon\.ico$', RedirectView.as_view(url='/static/images/favicon.ico')),
-  url(r'^robots.txt$', RedirectView.as_view(url='/static/robots.txt')),
-  url(r'^', include('website.frontend.urls')),
-    # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
+    url(r'^static/(?P<path>.*)$', 'django.views.static.serve', {
+        'document_root': ROOT_DIR+'/website/static',
+    }, name='static'),
+    url(r'^(assets/ico/)?favicon\.ico$', RedirectView.as_view(url='/static/images/favicon.ico')),
+    url(r'^robots.txt$', RedirectView.as_view(url='/static/robots.txt')),
+    url(r'^', include('website.frontend.urls')),
+    # Uncomment the admin/doc line below and add 'django.contrib.admindocs'
     # to INSTALLED_APPS to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
 

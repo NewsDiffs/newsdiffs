@@ -2,12 +2,12 @@
 {% load url from future %}
 
 
-{% block title %}Error{% endblock title%}
+{% block title %}Not found{% endblock title%}
 
 {% block content %}
 
-<h1>Oops, this doesn't look right</h1>
-<p>Hmm. If you are on this page, something went wrong.</p>
-<p>If you want to tell us what, you can <a href="{% url 'contact' %}">contact us</a>.</p>
+<h1>Not found</h1>
+<p>We couldn't find the thing we were supposed to find for you.</p>
+<p>If you want to tell us about it, you can <a href="{% url 'contact' %}">contact us</a>.</p>
   
 {% endblock content%}

@@ -1,6 +1,7 @@
-import os
+# https://django-doc-test1.readthedocs.io/en/stable-1.5.x/ref/settings.html
 
-from app_logging import logger
+import os
+from util.Bag import Bag
 
 DEBUG = os.environ.get('DJANGO_DEBUG', None) == 'True'
 TEMPLATE_DEBUG = DEBUG
@@ -21,6 +22,8 @@ DATABASES = {
 
 ALLOWED_HOSTS = [
     '.newsdiffs.org',
+    'newsdiffs-dev.us-east-1.elasticbeanstalk.com',
+    'newsdiffs.us-east-1.elasticbeanstalk.com',
 ]
 
 # Local time zone for this installation. Choices can be found here:
@@ -76,7 +79,7 @@ TEMPLATE_LOADERS = (
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    # 'django.contrib.sessions.middleware.SessionMiddleware',
 )
 
 ROOT_URLCONF = 'website.urls'
@@ -105,3 +108,53 @@ else:
         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
         'LOCATION': 'cache_table',
     }
+
+# https://django-doc-test1.readthedocs.io/en/stable-1.5.x/topics/logging.html
+LOGGING_CONFIG = None
+formatters = Bag(verbose='verbose')
+handlers = Bag(console='console', file='file')
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        formatters.verbose: {
+            'format': '%(asctime)s.%(msecs)06d [%(name)s] %(levelname)s: %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'null': {
+            'class': 'django.utils.log.NullHandler',
+        },
+        handlers.console: {
+            'level': os.environ.get('CONSOLE_LOG_LEVEL', 'ERROR'),
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'level': 'DEBUG',
+        'handlers': [handlers.console],
+    },
+    'loggers': {
+        'django.request': {
+            # Django's DEFAULT_LOGGING sets propagate: False
+            # I'm not sure why this is necessary since we should have prevented
+            # Django from configuring any logging with LOGGING_CONFIG=None above
+            'propagate': True,
+        },
+    }
+}
+if not DEBUG:
+    # Log to the file in prod
+    LOGGING['handlers'][handlers.file] = {
+        'level': os.environ['LOG_FILE_LOG_LEVEL'],
+        # 'level': 'DEBUG',  # os.environ['LOG_FILE_LOG_LEVEL'],
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': os.environ['LOG_FILE_PATH'],
+        # 'filename': '/opt/python/log/django.log',
+        'maxBytes': 32*1024*1024,  # 32MB
+        'backupCount': 1,
+        'formatter': formatters.verbose,
+    }
+    LOGGING['root']['handlers'] += [handlers.file]

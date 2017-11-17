@@ -1,15 +1,18 @@
 import datetime
+import json
+import logging
 import re
 
 from django.shortcuts import render_to_response, get_object_or_404, redirect
-from models import Article, Version
-import models
-import json
 from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.core.urlresolvers import reverse
-import django.db
 from django.template import Context, RequestContext, loader
 from django.views.decorators.cache import cache_page
+
+import models
+from models import Article, Version
+
+logger = logging.getLogger(__name__)
 
 OUT_FORMAT = '%B %d, %Y at %l:%M%P EDT'
 
@@ -21,15 +24,24 @@ search.yahoo.com
 http://www.bing.com
 """.split()
 
+SOURCES = '''
+nytimes.com
+cnn.com
+politico.com
+washingtonpost.com
+bbc.co.uk
+'''.split()
+
+
 def came_from_search_engine(request):
     return any(x in request.META.get('HTTP_REFERER', '')
                for x in SEARCH_ENGINES)
 
 
-
 def Http400():
     t = loader.get_template('404.html')
     return HttpResponse(t.render(Context()), status=400)
+
 
 def get_first_update(source):
     if source is None:
@@ -41,6 +53,7 @@ def get_first_update(source):
     except IndexError:
         return datetime.datetime.now()
 
+
 def get_last_update(source):
     if source is None:
         source = ''
@@ -50,6 +63,7 @@ def get_last_update(source):
     except IndexError:
         return datetime.datetime.now()
 
+
 def get_articles(source=None, distance=0):
     articles = []
     rx = re.compile(r'^https?://(?:[^/]*\.)%s/' % source if source else '')
@@ -58,7 +72,6 @@ def get_articles(source=None, distance=0):
     end_date = datetime.datetime.now() - distance * pagelength
     start_date = end_date - pagelength
 
-    print 'Asking query'
     version_query = '''
     SELECT
       version.id, 
@@ -115,17 +128,14 @@ def get_articles(source=None, distance=0):
             continue
         rowinfo = get_rowinfo(article, versions)
         articles.append((article, versions[-1], rowinfo))
-    print 'Queries:', len(django.db.connection.queries), django.db.connection.queries
-    articles.sort(key = lambda x: x[-1][0][1].date, reverse=True)
+    articles.sort(key=lambda x: x[-1][0][1].date, reverse=True)
     return articles
 
-
-SOURCES = '''nytimes.com cnn.com politico.com washingtonpost.com
-bbc.co.uk'''.split()
 
 def is_valid_domain(domain):
     """Cheap method to tell whether a domain is being tracked."""
     return any(domain.endswith(source) for source in SOURCES)
+
 
 @cache_page(60 * 30)  #30 minute cache
 def browse(request, source=''):
@@ -144,7 +154,7 @@ def browse(request, source=''):
 
     first_update = get_first_update(source)
     num_pages = (datetime.datetime.now() - first_update).days + 1
-    page_list=range(1, 1+num_pages)
+    page_list = range(1, 1+num_pages)
     page_list = []
 
     articles = get_articles(source=source, distance=page-1)
@@ -155,6 +165,7 @@ def browse(request, source=''):
             'first_update': first_update,
             'sources': SOURCES
             })
+
 
 @cache_page(60 * 30)  #30 minute cache
 def feed(request, source=''):
@@ -182,6 +193,7 @@ def feed(request, source=''):
             },
             context_instance=RequestContext(request),
             mimetype='application/atom+xml')
+
 
 def old_diffview(request):
     """Support for legacy diff urls"""
@@ -266,6 +278,7 @@ def diffview(request, vid1, vid2, urlarg):
             'display_search_banner': came_from_search_engine(request),
             })
 
+
 def get_rowinfo(article, version_lst=None):
     if version_lst is None:
         version_lst = article.versions()
@@ -302,6 +315,7 @@ def prepend_http(url):
         components[1:1] = ['']
     return '/'.join(components)
 
+
 def swap_http_https(url):
     """Get the url with the other of http/https to start"""
     for (one, other) in [("https:", "http:"),
@@ -310,11 +324,13 @@ def swap_http_https(url):
             return other+url[len(one):]
     raise ValueError("URL doesn't start with http: or https: ({0})".format(url))
 
+
 def decode_scheme_colon(url):
     # Sometimes the colon of http: or https: is URL-encoded.
     # Sometimes the encoding percent sign is itself encoded (multiple times!)
     # So replace as many %25 as necessary to get to the colon
     return re.sub('http(s?)%(25)*3A', 'http\g<1>:', url)
+
 
 def article_history(request, urlarg=''):
     url = request.REQUEST.get('url') # this is the deprecated interface.
@@ -359,6 +375,8 @@ def article_history(request, urlarg=''):
                                                        'versions':rowinfo,
             'display_search_banner': came_from_search_engine(request),
                                                        })
+
+
 def article_history_feed(request, url=''):
     url = prepend_http(url)
     article = get_object_or_404(Article, url=url)
@@ -371,6 +389,7 @@ def article_history_feed(request, url=''):
                               context_instance=RequestContext(request),
                               mimetype='application/atom+xml')
 
+
 def json_view(request, vid):
     version = get_object_or_404(Version, id=int(vid))
     data = dict(
@@ -381,6 +400,7 @@ def json_view(request, vid):
         )
     return HttpResponse(json.dumps(data), mimetype="application/json")
 
+
 def upvote(request):
     article_url = request.REQUEST.get('article_url')
     diff_v1 = request.REQUEST.get('diff_v1')
@@ -390,21 +410,26 @@ def upvote(request):
     models.Upvote(article_id=article_id, diff_v1=diff_v1, diff_v2=diff_v2, creation_time=datetime.datetime.now(), upvoter_ip=remote_ip).save()
     return render_to_response('upvote.html')
 
+
 def about(request):
     return render_to_response('about.html', {})
+
 
 def examples(request):
     return render_to_response('examples.html', {})
 
+
 def contact(request):
     return render_to_response('contact.html', {})
+
 
 def front(request):
     return render_to_response('front.html', {'sources': SOURCES})
 
+
 def subscribe(request):
     return render_to_response('subscribe.html', {})
 
+
 def press(request):
     return render_to_response('press.html', {})
-

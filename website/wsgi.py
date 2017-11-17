@@ -8,14 +8,20 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.11/howto/deployment/wsgi/
 """
 
-import os
+import logging.config
 
 from django.core.wsgi import get_wsgi_application
 
-import util
+import settings
+import util.env
 
 # util may depend upon logging, so set it up first
-util.log_to_file(os.environ['LOG_FILE_PATH'], os.environ['LOG_LEVEL'])
-util.configure_env()
+logging.config.dictConfig(settings.LOGGING)
+
+logger = logging.getLogger(__name__)
+
+util.env.configure_env()
+
+logger.debug('Creating Django WSGI application')
 
 application = get_wsgi_application()

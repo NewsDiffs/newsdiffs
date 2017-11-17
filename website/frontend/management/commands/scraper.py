@@ -51,7 +51,6 @@ class Command(BaseCommand):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-
         ch = logging.FileHandler(ERROR_FILE_PATH, mode='a')
         ch.setLevel(logging.WARNING)
         ch.setFormatter(formatter)
