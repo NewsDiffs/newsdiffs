@@ -6,36 +6,37 @@ import httplib
 import logging
 import os
 import subprocess
-import sys
 import textwrap
 import time
 import traceback
 import urllib2
 
-import diff_match_patch
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from optparse import make_option
 
 from frontend import models
-import parsers
-from parsers.baseparser import canonicalize, formatter, logger
-from website import settings
+from scraper import parsers
+from scraper import diff_match_patch
+from scraper.parsers.baseparser import canonicalize
 
 GIT_PROGRAM = 'git'
 ERROR_FILE_PATH = '/tmp/newsdiffs_logging_errs'
 
+logger = logging.getLogger(__name__)
+
+
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--update',
-            action='store_true',
-            default=False,
-            help='DEPRECATED; this is the default'),
+                    action='store_true',
+                    default=False,
+                    help='DEPRECATED; this is the default'),
         make_option('--all',
-            action='store_true',
-            default=False,
-            help='Update _all_ stored articles'),
-        )
+                    action='store_true',
+                    default=False,
+                    help='Update _all_ stored articles'),
+    )
     help = textwrap.dedent('''Scrape websites.
 
     By default, scan front pages for new articles, and scan
@@ -43,18 +44,9 @@ class Command(BaseCommand):
     
     Articles that haven't changed in a while are skipped if we've
     scanned them recently, unless --all is passed.
-    '''.strip())
+    ''').strip()
 
     def handle(self, *args, **options):
-        ch = logging.FileHandler('/tmp/newsdiffs_logging', mode='w')
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
-
-        ch = logging.FileHandler(ERROR_FILE_PATH, mode='a')
-        ch.setLevel(logging.WARNING)
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
 
         for repo in all_git_repos():
             cleanup_git_repo(repo)
@@ -65,70 +57,9 @@ class Command(BaseCommand):
         update_versions(todays_repo, options['all'])
 
         logger.info('Done scraping!')
-        notify_admins_of_errors()
 
 # Begin utility functions
 
-def notify_admins_of_errors():
-    with open(ERROR_FILE_PATH, 'r') as error_file:
-        errors = error_file.read().strip()
-        if errors:
-            logger.error('Error file is non-empty at end of run; emailing contents to admins')
-            admin_emails = map(lambda e: e[1], settings.ADMINS)
-            send_email(admin_emails, 'NewsDiffs scraper errors', errors)
-
-def send_email(recipients, subject, body):
-    contents = 'Subject: %s\n\n%s' % (subject, body)
-
-    msmtp_path = '/usr/bin/msmtp'
-    if os.path.exists(msmtp_path):
-        p = subprocess.Popen([msmtp_path, '-t'] + recipients,
-                             stdin=subprocess.PIPE)
-        p.communicate(contents)
-        if p.wait():
-            logger.error('Bad return code:', p.returncode)
-    else:
-        logger.error('%s does not exist; cannot email errors to admins' % (msmtp_path,))
-
-# subprocess.check_output appeared in python 2.7.
-# Linerva only has 2.6
-def check_output(*popenargs, **kwargs):
-    r"""Run command with arguments and return its output as a byte string.
-
-    If the exit code was non-zero it raises a CalledProcessError.  The
-    CalledProcessError object will have the return code in the returncode
-    attribute and output in the output attribute.
-
-    The arguments are the same as for the Popen constructor.  Example:
-
-    >>> check_output(["ls", "-l", "/dev/null"])
-    'crw-rw-rw- 1 root root 1, 3 Oct 18  2007 /dev/null\n'
-
-    The stdout argument is not allowed as it is used internally.
-    To capture standard error in the result, use stderr=STDOUT.
-
-    >>> check_output(["/bin/sh", "-c",
-    ...               "ls -l non_existent_file ; exit 0"],
-    ...              stderr=STDOUT)
-    'ls: non_existent_file: No such file or directory\n'
-    """
-    from subprocess import PIPE, CalledProcessError, Popen
-    if 'stdout' in kwargs:
-        raise ValueError('stdout argument not allowed, it will be overridden.')
-    process = Popen(stdout=PIPE, *popenargs, **kwargs)
-    output, unused_err = process.communicate()
-    retcode = process.poll()
-    if retcode:
-        cmd = kwargs.get("args")
-        if cmd is None:
-            cmd = popenargs[0]
-        err = CalledProcessError(retcode, cmd)
-        err.output = output
-        raise err
-    return output
-
-if not hasattr(subprocess, 'check_output'):
-    subprocess.check_output = check_output
 
 def mkdir_p(path):
     try:
@@ -139,11 +70,14 @@ def mkdir_p(path):
         else:
             raise
 
+
 def canonicalize_url(url):
     return url.split('?')[0].split('#')[0].strip()
 
+
 class IndexLockError(OSError):
     pass
+
 
 def make_new_git_repo(full_dir):
     mkdir_p(full_dir)
@@ -160,6 +94,7 @@ def make_new_git_repo(full_dir):
     except subprocess.CalledProcessError as e:
         raise
 
+
 def get_and_make_git_repo():
     result = time.strftime('%Y-%m', time.localtime())
     full_path = os.path.join(models.ARTICLES_DIR_ROOT, result)
@@ -167,9 +102,11 @@ def get_and_make_git_repo():
         make_new_git_repo(full_path)
     return result
 
+
 def all_git_repos():
     import glob
     return glob.glob(os.path.join(models.ARTICLES_DIR_ROOT, '*'))
+
 
 def run_git_command(command, git_dir, max_timeout=15):
     """Run a git command like ['show', filename] and return the output.
@@ -188,10 +125,11 @@ def run_git_command(command, git_dir, max_timeout=15):
         else:
             raise IndexLockError('Git index.lock file exists for %s seconds'
                                  % max_timeout)
-    output =  subprocess.check_output([GIT_PROGRAM] + command,
-                                      cwd=git_dir,
-                                      stderr=subprocess.STDOUT)
+    output = subprocess.check_output([GIT_PROGRAM] + command,
+                                     cwd=git_dir,
+                                     stderr=subprocess.STDOUT)
     return output
+
 
 def get_all_article_urls():
     ans = set()
@@ -201,7 +139,14 @@ def get_all_article_urls():
         ans = ans.union(map(canonicalize_url, urls))
     return ans
 
-CHARSET_LIST = """EUC-JP GB2312 EUC-KR Big5 SHIFT_JIS windows-1252
+
+CHARSET_LIST = """
+EUC-JP 
+GB2312 
+EUC-KR 
+Big5 
+SHIFT_JIS 
+windows-1252
 IBM855
 IBM866
 ISO-8859-2
@@ -213,7 +158,10 @@ TIS-620
 windows-1250
 windows-1251
 windows-1253
-windows-1255""".split()
+windows-1255
+""".split()
+
+
 def is_boring(old, new):
     oldu = canonicalize(old.decode('utf8'))
     newu = canonicalize(new.decode('utf8'))
@@ -239,6 +187,7 @@ def is_boring(old, new):
             pass
     return False
 
+
 def get_diff_info(old, new):
     dmp = diff_match_patch.diff_match_patch()
     dmp.Diff_Timeout = 3 # seconds; default of 1 is too little
@@ -247,6 +196,7 @@ def get_diff_info(old, new):
     chars_added   = sum(len(text) for (sign, text) in diff if sign == 1)
     chars_removed = sum(len(text) for (sign, text) in diff if sign == -1)
     return dict(chars_added=chars_added, chars_removed=chars_removed)
+
 
 def add_to_git_repo(data, filename, article):
     start_time = time.time()
@@ -263,7 +213,7 @@ def add_to_git_repo(data, filename, article):
         previous = run_git_command(['show', 'HEAD:'+filename], article.full_git_dir)
     except subprocess.CalledProcessError as e:
         if (e.output.endswith("does not exist in 'HEAD'\n") or
-            e.output.endswith("exists on disk, but not in 'HEAD'.\n")):
+                e.output.endswith("exists on disk, but not in 'HEAD'.\n")):
             already_exists = False
         else:
             raise
@@ -287,7 +237,7 @@ def add_to_git_repo(data, filename, article):
         # Why > 2?  Why not > 1?
         if len(commits) > 2:
             logger.debug('Checking for duplicates among %s commits',
-                          len(commits))
+                         len(commits))
             def get_hash(version):
                 """Return the SHA1 hash of filename in a given version"""
                 output = run_git_command(['ls-tree', '-r', version, filename],
@@ -354,6 +304,7 @@ def load_article(url):
         return
     return parsed_article
 
+
 #Update url in git
 #Return whether it changed
 def update_article(article):
@@ -381,6 +332,7 @@ def update_article(article):
             article.last_update = t
             article.save()
 
+
 def update_articles(todays_git_dir):
     logger.info('Starting scraper; looking for new URLs')
     all_urls = get_all_article_urls()
@@ -395,6 +347,7 @@ def update_articles(todays_git_dir):
             logger.debug('Adding Article {0}'.format(url))
             models.Article(url=url, git_dir=todays_git_dir).save()
     logger.info('Done storing to database')
+
 
 def get_update_delay(minutes_since_update):
     days_since_update = minutes_since_update // (24 * 60)
@@ -411,11 +364,12 @@ def get_update_delay(minutes_since_update):
     else:
         return 60*24*365*1e5  #ignore old articles
 
+
 def update_versions(todays_repo, do_all=False):
     logger.info('Looking for articles to check')
     # For memory issues, restrict to the last year of articles
     threshold = datetime.now() - timedelta(days=366)
-    article_query = models.Article.objects.exclude(git_dir='old').filter(Q(last_update__gt=threshold) | 
+    article_query = models.Article.objects.exclude(git_dir='old').filter(Q(last_update__gt=threshold) |
                                                                          Q(initial_date__gt=threshold))
     articles = list(article_query)
     total_articles = len(articles)
@@ -432,10 +386,8 @@ def update_versions(todays_repo, do_all=False):
     try:
         run_git_command(['gc'], os.path.join(models.ARTICLES_DIR_ROOT, todays_repo))
     except subprocess.CalledProcessError as e:
-        print >> sys.stderr, 'Error on initial gc!'
-        print >> sys.stderr, 'Output was """'
-        print >> sys.stderr, e.output
-        print >> sys.stderr, '"""'
+        logger.error('Error on initial gc!  Output:')
+        logging.error(e.output)
         raise
 
     logger.info('Done with gc!')
@@ -463,8 +415,9 @@ def update_versions(todays_repo, do_all=False):
 
             logger.error(traceback.format_exc())
         article.save()
-    #logger.info('Ending with gc:')
-    #run_git_command(['gc'])
+        #logger.info('Ending with gc:')
+        #run_git_command(['gc'])
+
 
 #Remove index.lock if 5 minutes old
 def cleanup_git_repo(git_dir):
@@ -477,6 +430,3 @@ def cleanup_git_repo(git_dir):
         age = time.time() - stat.st_ctime
         if age > 60*5:
             os.remove(fname)
-
-if __name__ == '__main__':
-    print >> sys.stderr, "Try `python website/manage.py scraper`."

@@ -7,26 +7,12 @@ import sys
 import time
 import urllib2
 
-# Define a logger
-
-# This formatter is like the default but uses a period rather than a comma
-# to separate the milliseconds
-class MyFormatter(logging.Formatter):
-    def formatTime(self, record, datefmt=None):
-        return logging.Formatter.formatTime(self, record,
-                                            datefmt).replace(',', '.')
+from BeautifulSoup import BeautifulSoup
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-formatter = MyFormatter('%(asctime)s:%(levelname)s:%(message)s')
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARNING)
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-
 
 # Utility functions
+
 
 def grab_url(url, max_depth=5, opener=None):
     timeout = 5
@@ -62,7 +48,6 @@ def grab_url(url, max_depth=5, opener=None):
 
 # Begin hot patch for https://bugs.launchpad.net/bugs/788986
 # Ick.
-from BeautifulSoup import BeautifulSoup
 def bs_fixed_getText(self, separator=u""):
     bsmod = sys.modules[BeautifulSoup.__module__]
     if not len(self.contents):

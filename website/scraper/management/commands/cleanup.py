@@ -1,39 +1,41 @@
 #!/usr/bin/python
 
+from datetime import datetime
+from optparse import make_option
+import os
 import sys
 import subprocess
-import os
+import textwrap
+
+from django.core.management.base import BaseCommand
+
 from frontend import models
-from datetime import datetime, timedelta
-import traceback
-import time
-import scraper
+from scraper.management.commands import scrape
 
-GIT_PROGRAM='git'
+GIT_PROGRAM = 'git'
 
-from django.core.management.base import BaseCommand, CommandError
-from optparse import make_option
 
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--migrate',
-            action='store_true',
-            default=False,
-            help='Recreate version + article database from git repo'),
+                    action='store_true',
+                    default=False,
+                    help='Recreate version + article database from git repo'),
         make_option('--remove-duplicates',
-            action='store_true',
-            default=False,
-            help='Mark versions that appear multiple times in git repo as boring'),
+                    action='store_true',
+                    default=False,
+                    help='Mark versions that appear multiple times in git repo '
+                         'as boring'),
         make_option('--mark-boring',
-            action='store_true',
-            default=False,
-            help='Look through versions to mark boring ones'),
-        )
-    help = '''Modify versions in git repo
+                    action='store_true',
+                    default=False,
+                    help='Look through versions to mark boring ones'),
+    )
+    help = textwrap.dedent('''Modify versions in git repo
 
-Articles that haven't changed in a while are skipped if we've
-scanned them recently, unless --all is passed.
-'''.strip()
+        Articles that haven't changed in a while are skipped if we've
+        scanned them recently, unless --all is passed.
+        ''').strip()
 
     def handle(self, *args, **options):
         if options['migrate']:
@@ -83,7 +85,6 @@ def migrate_versions():
 
                 article.save()
 
-
         text = subprocess.check_output([GIT_PROGRAM, 'show',
                                         v+':'+fname],
                                        cwd=models.ARTICLES_DIR_ROOT)
@@ -102,45 +103,6 @@ def migrate_versions():
 
 # Begin utility functions
 
-# subprocess.check_output appeared in python 2.7.
-# Linerva only has 2.6
-def check_output(*popenargs, **kwargs):
-    r"""Run command with arguments and return its output as a byte string.
-
-    If the exit code was non-zero it raises a CalledProcessError.  The
-    CalledProcessError object will have the return code in the returncode
-    attribute and output in the output attribute.
-
-    The arguments are the same as for the Popen constructor.  Example:
-
-    >>> check_output(["ls", "-l", "/dev/null"])
-    'crw-rw-rw- 1 root root 1, 3 Oct 18  2007 /dev/null\n'
-
-    The stdout argument is not allowed as it is used internally.
-    To capture standard error in the result, use stderr=STDOUT.
-
-    >>> check_output(["/bin/sh", "-c",
-    ...               "ls -l non_existent_file ; exit 0"],
-    ...              stderr=STDOUT)
-    'ls: non_existent_file: No such file or directory\n'
-    """
-    from subprocess import PIPE, CalledProcessError, Popen
-    if 'stdout' in kwargs:
-        raise ValueError('stdout argument not allowed, it will be overridden.')
-    process = Popen(stdout=PIPE, *popenargs, **kwargs)
-    output, unused_err = process.communicate()
-    retcode = process.poll()
-    if retcode:
-        cmd = kwargs.get("args")
-        if cmd is None:
-            cmd = popenargs[0]
-        err = CalledProcessError(retcode, cmd)
-        err.output = output
-        raise err
-    return output
-
-if not hasattr(subprocess, 'check_output'):
-    subprocess.check_output = check_output
 
 def get_hash(version, filename):
     """Return the SHA1 hash of filename in a given version"""
@@ -148,6 +110,7 @@ def get_hash(version, filename):
                                       version, filename],
                                      cwd=models.ARTICLES_DIR_ROOT)
     return output.split()[2]
+
 
 def remove_duplicates():
     num_articles = models.Article.objects.count()
@@ -166,6 +129,7 @@ def remove_duplicates():
                 print article.url, 'should be boring', v.v, len(versions)
                 v.boring = True
                 v.save()
+
 
 def mark_boring():
     articles = models.Article.objects.all()
@@ -188,10 +152,11 @@ def mark_boring():
             texts = [(v, v.text()) for v in versions if v.text()]
 
         for (old, oldtxt), (new, newtxt) in zip(texts, texts[1:]):
-            if scraper.is_boring(oldtxt, newtxt):
+            if scrape.is_boring(oldtxt, newtxt):
                 print 'Boring: %s %s %s' % (article.url, old.v, new.v)
                 new.boring = True
                 new.save()
+
 
 legacy_bad_commit_range = (datetime(2012, 7, 8, 4, 0),
                            datetime(2012, 7, 8, 8, 0))
@@ -206,6 +171,3 @@ dda84ac629f96bfd4cb792dc4db1829e76ad94e5
 0ac04be3af54962dc7f8bb28550267543692ec28
 2611043df5a4bfe28a050f474b1a96afbae2edb1
 """.split()
-
-if __name__ == '__main__':
-    print >>sys.stderr, "Try `python website/manage.py cleanup`."

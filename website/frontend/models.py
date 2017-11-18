@@ -11,14 +11,17 @@ THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
 ARTICLES_DIR_ROOT = os.environ['ARTICLES_DIR_ROOT']
 if not os.path.isabs(ARTICLES_DIR_ROOT):
-    ARTICLES_DIR_ROOT = util.path.prepend_project_dir(ARTICLES_DIR_ROOT)
+    ARTICLES_DIR_ROOT = \
+        util.path.prepend_project_dir(os.path.pardir, ARTICLES_DIR_ROOT)
 
 GIT_PROGRAM = 'git'
+
 
 def strip_prefix(string, prefix):
     if string.startswith(prefix):
         string = string[len(prefix):]
     return string
+
 
 PublicationDict = {
     'www.nytimes.com': 'NYT',
@@ -29,6 +32,7 @@ PublicationDict = {
 }
 
 ancient = datetime(1901, 1, 1)
+
 
 # Create your models here.
 class Article(models.Model):
@@ -76,6 +80,7 @@ class Article(models.Model):
         delta = datetime.now() - self.last_check
         return delta.seconds // 60 + 24*60*delta.days
 
+
 class Version(models.Model):
     class Meta:
         db_table = 'version'
@@ -101,6 +106,7 @@ class Version(models.Model):
         if self.diff_json is None:
             return {}
         return json.loads(self.diff_json)
+
     def set_diff_info(self, val=None):
         if val is None:
             self.diff_json = None
@@ -118,42 +124,3 @@ class Upvote(models.Model):
     diff_v2 = models.CharField(max_length=255, blank=False)
     creation_time = models.DateTimeField(blank=False)
     upvoter_ip = models.CharField(max_length=255)
-
-
-# subprocess.check_output appeared in python 2.7.
-# backport it to 2.6
-def check_output(*popenargs, **kwargs):
-    r"""Run command with arguments and return its output as a byte string.
-
-    If the exit code was non-zero it raises a CalledProcessError.  The
-    CalledProcessError object will have the return code in the returncode
-    attribute and output in the output attribute.
-
-    The arguments are the same as for the Popen constructor.  Example:
-
-    >>> check_output(["ls", "-l", "/dev/null"])
-    'crw-rw-rw- 1 root root 1, 3 Oct 18  2007 /dev/null\n'
-
-    The stdout argument is not allowed as it is used internally.
-    To capture standard error in the result, use stderr=STDOUT.
-
-    >>> check_output(["/bin/sh", "-c",
-    ...               "ls -l non_existent_file ; exit 0"],
-    ...              stderr=STDOUT)
-    'ls: non_existent_file: No such file or directory\n'
-    """
-    from subprocess import PIPE, CalledProcessError, Popen
-    if 'stdout' in kwargs:
-        raise ValueError('stdout argument not allowed, it will be overridden.')
-    process = Popen(stdout=PIPE, *popenargs, **kwargs)
-    output, unused_err = process.communicate()
-    retcode = process.poll()
-    if retcode:
-        cmd = kwargs.get("args")
-        if cmd is None:
-            cmd = popenargs[0]
-        raise CalledProcessError(retcode, cmd, output=output)
-    return output
-
-if not hasattr(subprocess, 'check_output'):
-    subprocess.check_output = check_output

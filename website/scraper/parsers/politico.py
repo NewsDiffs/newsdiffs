@@ -11,7 +11,7 @@ import re
 class PoliticoParser(BaseParser):
     domains = ['www.politico.com']
 
-    feeder_pat   = '^http://www.politico.com/(news/stories|story)/'
+    feeder_pat = '^http://www.politico.com/(news/stories|story)/'
     feeder_pages = ['http://www.politico.com/']
 
     feeder_bs = bs4.BeautifulSoup

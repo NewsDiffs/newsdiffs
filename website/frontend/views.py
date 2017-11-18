@@ -119,7 +119,7 @@ def get_articles(source=None, distance=0):
     for article, versions in article_dict.items():
         url = article.url
         if not rx.match(url):
-            print 'REJECTING', url
+            logger.info('REJECTING url: %s', url)
             continue
         if 'blogs.nytimes.com' in url: #XXX temporary
             continue

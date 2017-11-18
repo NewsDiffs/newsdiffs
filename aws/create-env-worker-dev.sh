@@ -1,0 +1,1 @@
+eb create newsdiffs-worker-dev --single --tier worker

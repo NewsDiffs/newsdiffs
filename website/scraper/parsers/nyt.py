@@ -41,7 +41,6 @@ class NYTParser(BaseParser):
                     'http://www.nytimes.com/pages/todayspaper/',
                     'http://topics.nytimes.com/top/opinion/thepubliceditor/']
 
-
     def _parse(self, html):
         soup = BeautifulSoup(html, convertEntities=BeautifulSoup.HTML_ENTITIES)
         self.meta = soup.findAll('meta')

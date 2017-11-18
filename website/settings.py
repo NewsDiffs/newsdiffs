@@ -82,6 +82,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'south',
     'frontend',
+    'scraper',
 )
 
 STATIC_URL = '/static/'
@@ -110,7 +111,7 @@ LOGGING = {
     'disable_existing_loggers': True,
     'formatters': {
         formatters.verbose: {
-            'format': '%(asctime)s.%(msecs)06d [%(name)s] %(levelname)s: %(message)s',
+            'format': '%(asctime)s.%(msecs)03d [%(name)s] %(levelname)s: %(message)s',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
