@@ -1,18 +1,20 @@
 {% load url from future %}
+{% load staticfiles %}
 
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <title>NewsDiffs | {% block title %}Tracking Online News Articles Over Time{% endblock %}</title>
+    <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="NewsDiffs tracks changes in online news articles over time">
-    <meta name="author" content="Eric Price, Greg Price, Jennifer 8. Lee">
+    <meta name="author" content="Eric Price, Greg Price, Jennifer 8. Lee, Carl Gieringer">
 
     <!-- Le styles -->
 
 
-    <link href="{% url 'static' 'styles/bootstrap.css' %}" rel="stylesheet" media ="screen">
+    <link href="{% static 'styles/bootstrap.css' %}" rel="stylesheet" media ="screen">
     <style>
       body {
         padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
@@ -25,7 +27,6 @@
     <![endif]-->
 
     <!-- Le fav and touch icons -->
-    <link rel="shortcut icon" href="{% url 'root' %}assets/ico/favicon.ico">
     <link rel="apple-touch-icon-precomposed" sizes="144x144" href="{% url 'root' %}assets/ico/apple-touch-icon-144-precomposed.png">
     <link rel="apple-touch-icon-precomposed" sizes="114x114" href="{% url 'root' %}assets/ico/apple-touch-icon-114-precomposed.png">
     <link rel="apple-touch-icon-precomposed" sizes="72x72" href="{% url 'root' %}assets/ico/apple-touch-icon-72-precomposed.png">
@@ -46,9 +47,7 @@
     </script>
 
       {% block head %} {% endblock %}
-     <!-- <script src="{% url 'static' 'js/jquery.js' %}"></script> -->
-     <!--<script src="http://code.jquery.com/jquery-latest.js"></script>-->         
-	<script src="{% url 'static' 'js/bootstrap.js'%}"></script>
+
 
   </head>
 
@@ -99,16 +98,18 @@
     <!-- Bootstrap javascript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="{% url 'static' 'lib/bootstrap-alert.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-modal.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-dropdown.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-scrollspy.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-tab.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-tooltip.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-popover.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-button.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-collapse.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-carousel.js' %}"></script>
-    <script src="{% url 'static' 'lib/bootstrap-typeahead.js' %}"></script>
+    <script src="{% static 'js/jquery-3.2.1.min.js'%}"></script>
+    <script src="{% static 'js/bootstrap.min.js'%}"></script>
+    <script src="{% static 'lib/bootstrap-alert.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-modal.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-dropdown.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-scrollspy.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-tab.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-tooltip.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-popover.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-button.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-collapse.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-carousel.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-typeahead.js' %}"></script>
   </body>
 </html>

@@ -65,18 +65,19 @@ $ mkdir articles
 ```
 
 ## Environment variables
-| Environment Variable| Description                              |
-| --------------------| -----------------------------------------|
-| `DJANGO_SECRET_KEY` | the secret key for Django operations     |
-| `ARTICLES_DIR_ROOT` | the directory where articles are stored. If not absolute, it will be relative to the Django project directory. | 
-| `DB_ENGINE`         | the Django database engine               |
-| `DB_HOST`           | the Django database Host                 |
-| `DB_PORT`           | the Django database port                 |
-| `DB_NAME`           | the Django database name                 |
-| `DB_USER`           | the Django database username             |
-| `DB_PASSWORD`       | the Django database password             |
-| `LOG_FILE_PATH`     | WSGI-only: the path to which to log      |
-| `LOG_FILE_LEVEL`    | WSGI-only: the level at which to log to file |
+| Environment Variable | Description |
+| ---------------------| ----------- |
+| `DJANGO_SECRET_KEY`  | the secret key for Django operations
+| `ARTICLES_DIR_ROOT`  | the directory where articles are stored. If not absolute, it will be relative to the Django project directory. 
+| `DB_ENGINE`          | the Django database engine
+| `DB_HOST`            | the Django database Host
+| `DB_PORT`            | the Django database port
+| `DB_NAME`            | the Django database name
+| `DB_USER`            | the Django database username
+| `DB_PASSWORD`        | the Django database password
+| `CONSOLE_LOG_LEVEL`  | the level at which to log to console (default: ERROR)
+| `LOG_FILE_PATH`      | WSGI-only: the path to which to log
+| `LOG_FILE_LOG_LEVEL` | WSGI-only: the level at which to log to file
 
 Running NewsDiffs Locally
 -------------------------

@@ -5,13 +5,13 @@ from datetime import datetime, timedelta
 import json
 from django.db import models, IntegrityError
 
-import util.env
+import util.path
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
 ARTICLES_DIR_ROOT = os.environ['ARTICLES_DIR_ROOT']
 if not os.path.isabs(ARTICLES_DIR_ROOT):
-    ARTICLES_DIR_ROOT = util.env.prepend_project_dir(ARTICLES_DIR_ROOT)
+    ARTICLES_DIR_ROOT = util.path.prepend_project_dir(ARTICLES_DIR_ROOT)
 
 GIT_PROGRAM = 'git'
 

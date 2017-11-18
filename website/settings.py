@@ -1,7 +1,10 @@
 # https://django-doc-test1.readthedocs.io/en/stable-1.5.x/ref/settings.html
 
+import logging
 import os
+
 from util.Bag import Bag
+import util.path
 
 DEBUG = os.environ.get('DJANGO_DEBUG', None) == 'True'
 TEMPLATE_DEBUG = DEBUG
@@ -45,26 +48,12 @@ SITE_ID = 1
 # to load the internationalization machinery.
 USE_I18N = True
 
-# Absolute path to the directory that holds media.
-# Example: "/home/media/media.lawrence.com/"
-MEDIA_ROOT = ''
-
-# URL that handles the media served from MEDIA_ROOT. Make sure to use a
-# trailing slash if there is a path component (optional in other cases).
-# Examples: "http://media.lawrence.com", "http://example.com/media/"
-MEDIA_URL = ''
-
-# URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
-# trailing slash.
-# Examples: "http://foo.com/media/", "/media/".
-ADMIN_MEDIA_PREFIX = '/media/'
-
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', None)
 if not SECRET_KEY:
     message = 'DJANGO_SECRET_KEY is missing'
     if DEBUG:
-        logger.warn(message)
+        logging.warn(message)
     else:
         raise Exception(message)
 
@@ -82,7 +71,7 @@ MIDDLEWARE_CLASSES = (
     # 'django.contrib.sessions.middleware.SessionMiddleware',
 )
 
-ROOT_URLCONF = 'website.urls'
+ROOT_URLCONF = 'urls'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
@@ -91,11 +80,18 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.sites',
+    'django.contrib.staticfiles',
+    # 'django.contrib.contenttypes',
+    # 'django.contrib.sessions',
+    # 'django.contrib.sites',
     'south',
     'frontend',
+)
+
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = (
+    util.path.prepend_project_dir(os.path.pardir, 'static'),
 )
 
 CACHES = {}
