@@ -6,16 +6,16 @@
     <link rel="alternate" href="{{article.filename}}"/>
     <updated>{{article.last_update|date:"r"}}</updated>
     <author>
-         <name>{{article.publication}}</name>
+        <name>{{article.publication}}</name>
     </author>
     {% for difflink, version in versions %}
-    {% if difflink %}
-    <entry>
-        <title>{{version.title}}</title>
-        <published>{{version.date|date:"r"}}</published>
-	<id>http://{{request.META.HTTP_HOST}}{{difflink}}</id>
-	<link rel="self" href="http://{{request.META.HTTP_HOST}}{{difflink}}"></link>
-    </entry>
-    {% endif %}
+        {% if difflink %}
+            <entry>
+                <title>{{version.title}}</title>
+                <published>{{version.date|date:"r"}}</published>
+                <id>http://{{request.META.HTTP_HOST}}{{difflink}}</id>
+                <link rel="self" href="http://{{request.META.HTTP_HOST}}{{difflink}}"></link>
+            </entry>
+        {% endif %}
     {% endfor %}
 </feed>

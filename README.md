@@ -5,8 +5,8 @@ A website and framework that tracks changes in online news articles over time.
 
 Original installation at newsdiffs.org.
 A product of the Knight Mozilla MIT news hackathon in June 2012.
-Authors: Eric Price (ecprice@mit.edu), Greg Price (gnprice@gmail.com),
- and Jennifer 8. Lee (jenny@jennifer8lee.com)
+Authors: Eric Price (ecprice@mit.edu), Greg Price (gnprice@gmail.com), 
+Jennifer 8. Lee (jenny@jennifer8lee.com), and Carl Gieringer.
 
 This is free software under the MIT/Expat license; see LICENSE.
 The project's source code lives at http://github.com/ecprice/newsdiffs .
