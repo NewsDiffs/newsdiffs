@@ -1,0 +1,37 @@
+EnvironmentConfigurationMetadata:
+  Description: Configuration created from the EB CLI using "eb config save".
+  DateCreated: '1511046297000'
+  DateModified: '1511046297000'
+Platform:
+  PlatformArn: arn:aws:elasticbeanstalk:us-east-1::platform/Python 2.7 running on 64bit Amazon Linux/2.6.0
+OptionSettings:
+  aws:autoscaling:launchconfiguration:
+    IamInstanceProfile: aws-elasticbeanstalk-ec2-role
+    InstanceType: t2.micro
+    EC2KeyName: newsdiffs-key-pair
+    SecurityGroups: newsdiffs-dev
+  aws:elasticbeanstalk:application:environment:
+    FILE_SYSTEM_ID: fs-a16741e8
+    MOUNT_DIRECTORY: /newsdiffs-efs
+    PYTHONPATH: /opt/python/current/app/website:$PYTHONPATH
+    CONSOLE_LOG_LEVEL: DEBUG
+    ARTICLES_DIR_ROOT: /newsdiffs-efs/articles/
+    LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
+    LOG_FILE_LOG_LEVEL: DEBUG
+    DB_ENGINE: django.db.backends.mysql
+    DB_HOST: newsdiffs-1.cluster-cenpzaz45rbm.us-east-1.rds.amazonaws.com
+    DB_PORT: '3306'
+    DB_NAME: newsdiffs_dev
+    DB_USER: newsdiffs_dev
+  aws:elasticbeanstalk:command:
+    BatchSize: '30'
+    BatchSizeType: Percentage
+  aws:elasticbeanstalk:environment:
+    ServiceRole: aws-elasticbeanstalk-service-role
+    EnvironmentType: SingleInstance
+  aws:elasticbeanstalk:healthreporting:system:
+    SystemType: enhanced
+EnvironmentTier:
+  Name: Worker
+  Type: SQS/HTTP
+AWSConfigurationTemplateVersion: 1.1.0.0

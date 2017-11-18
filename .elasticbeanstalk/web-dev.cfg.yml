@@ -1,0 +1,40 @@
+Platform:
+  PlatformArn: arn:aws:elasticbeanstalk:us-east-1::platform/Python 2.7 running on 64bit Amazon Linux/2.6.0
+OptionSettings:
+  aws:autoscaling:launchconfiguration:
+    IamInstanceProfile: aws-elasticbeanstalk-ec2-role
+    InstanceType: t2.micro
+    EC2KeyName: newsdiffs-key-pair
+    SecurityGroups: newsdiffs-dev
+  aws:elasticbeanstalk:application:environment:
+    FILE_SYSTEM_ID: fs-a16741e8
+    MOUNT_DIRECTORY: /newsdiffs-efs
+    PYTHONPATH: /opt/python/current/app/website:$PYTHONPATH
+    CONSOLE_LOG_LEVEL: DEBUG
+    LOG_FILE_PATH: /opt/python/log/newsdiffs-web.log
+    LOG_FILE_LOG_LEVEL: DEBUG
+    ARTICLES_DIR_ROOT: /newsdiffs-efs/articles/
+    DB_ENGINE: django.db.backends.mysql
+    DB_HOST: newsdiffs-1.cluster-cenpzaz45rbm.us-east-1.rds.amazonaws.com
+    DB_PORT: '3306'
+    DB_NAME: newsdiffs_dev
+    DB_USER: newsdiffs_dev
+  aws:elasticbeanstalk:command:
+    BatchSize: '30'
+    BatchSizeType: Percentage
+  aws:elasticbeanstalk:container:python:
+    WSGIPath: website/wsgi.py
+    NumProcesses: 2
+  aws:elasticbeanstalk:container:python:staticfiles:
+    /static/: static/
+    robots.txt: static/robots.txt
+    favicon.ico: static/img/favicon.ico
+  aws:elasticbeanstalk:environment:
+    ServiceRole: aws-elasticbeanstalk-service-role
+    EnvironmentType: SingleInstance
+  aws:elasticbeanstalk:healthreporting:system:
+    SystemType: enhanced
+EnvironmentTier:
+  Name: WebServer
+  Type: Standard
+AWSConfigurationTemplateVersion: 1.1.0.0

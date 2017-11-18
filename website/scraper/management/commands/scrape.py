@@ -47,16 +47,26 @@ class Command(BaseCommand):
     ''').strip()
 
     def handle(self, *args, **options):
+        logger.info('Starting scraping')
 
+        logger.debug('Beginning to clean all Git repos')
         for repo in all_git_repos():
+            logger.debug('About to clean Git repo %s', repo)
             cleanup_git_repo(repo)
+        logger.debug('Done cleaning all Git repos')
 
         todays_repo = get_and_make_git_repo()
+        logger.debug("Today's Git repo: %s", todays_repo)
 
+        logger.debug('Beginning updating articles')
         update_articles(todays_repo)
-        update_versions(todays_repo, options['all'])
+        logger.debug('Done updating articles')
 
-        logger.info('Done scraping!')
+        logger.debug('Beginning updating versions')
+        update_versions(todays_repo, options['all'])
+        logger.debug('Done updating versions')
+
+        logger.info('Done scraping.')
 
 # Begin utility functions
 
