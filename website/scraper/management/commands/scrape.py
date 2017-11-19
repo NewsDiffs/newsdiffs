@@ -21,7 +21,6 @@ from scraper import diff_match_patch
 from scraper.parsers.baseparser import canonicalize
 
 GIT_PROGRAM = 'git'
-ERROR_FILE_PATH = '/tmp/newsdiffs_logging_errs'
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +73,7 @@ class Command(BaseCommand):
 def mkdir_p(path):
     try:
         os.makedirs(path)
-    except OSError as exc: # Python >2.5
+    except OSError as exc:  # Python >2.5
         if exc.errno == errno.EEXIST:
             pass
         else:
@@ -92,24 +91,32 @@ class IndexLockError(OSError):
 def make_new_git_repo(full_dir):
     mkdir_p(full_dir)
 
-    # Create a file so that there is something to commit
-    tmpfile = os.path.join(full_dir, 'initial-commit-file')
-    open(tmpfile, 'w').close()
+    subprocess.check_output([GIT_PROGRAM, 'init'], cwd=full_dir)
 
-    try:
-        subprocess.check_output([GIT_PROGRAM, 'init',], cwd=full_dir)
-        subprocess.check_output([GIT_PROGRAM, 'add', tmpfile], cwd=full_dir)
-        subprocess.check_output([GIT_PROGRAM, 'commit', '-m', 'Initial commit'],
-                                cwd=full_dir)
-    except subprocess.CalledProcessError as e:
-        raise
+    # Create a file so that there is something to commit
+    initial_commit_file = os.path.join(full_dir, 'initial-commit-file')
+    open(initial_commit_file, 'w').close()
+
+    subprocess.check_output([GIT_PROGRAM, 'config', 'user.email', 'scraper@newsdiffs.org'], cwd=full_dir)
+    subprocess.check_output([GIT_PROGRAM, 'config', 'user.name', 'NewsDiffs Scraper'], cwd=full_dir)
+
+    subprocess.check_output([GIT_PROGRAM, 'add', initial_commit_file],
+                            cwd=full_dir)
+    subprocess.check_output([GIT_PROGRAM, 'commit', '-m', 'Initial commit'],
+                            cwd=full_dir)
 
 
 def get_and_make_git_repo():
     result = time.strftime('%Y-%m', time.localtime())
     full_path = os.path.join(models.ARTICLES_DIR_ROOT, result)
     if not os.path.exists(full_path+'/.git'):
+        logger.debug('Creating Git repo at: %s', full_path)
         make_new_git_repo(full_path)
+
+        # Make directories world-readable to avoid permissions problems
+        # between the scraper and web app
+        os.chmod(full_path, 0o777)
+
     return result
 
 
@@ -214,7 +221,15 @@ def add_to_git_repo(data, filename, article):
     # Don't use full path because it can exceed the maximum filename length
     # full_path = os.path.join(models.ARTICLES_DIR_ROOT, filename)
     os.chdir(article.full_git_dir)
-    mkdir_p(os.path.dirname(filename))
+    article_dirname = os.path.dirname(filename)
+    mkdir_p(article_dirname)
+
+    # Make directories world-readable to avoid permissions problems
+    # between the scraper and web app
+    curr_dir = article.full_git_dir
+    for part in article_dirname.split(os.path.sep):
+        curr_dir = os.path.join(curr_dir, part)
+        os.chmod(curr_dir, 0o777)
 
     boring = False
     diff_info = None
@@ -230,8 +245,11 @@ def add_to_git_repo(data, filename, article):
     else:
         already_exists = True
 
-    # When close this file?
-    open(filename, 'w').write(data)
+    with open(filename, 'w') as article_file:
+        article_file.write(data)
+    # Write the files as world-readable to avoid permissions errors between
+    # the web and scraper
+    os.chmod(filename, 0o777)
 
     if already_exists:
         if previous == data:
@@ -394,7 +412,8 @@ def update_versions(todays_repo, do_all=False):
     # it still happens and I don't run out of quota. =)
     logger.info('Starting with gc:')
     try:
-        run_git_command(['gc'], os.path.join(models.ARTICLES_DIR_ROOT, todays_repo))
+        output = run_git_command(['gc'], os.path.join(models.ARTICLES_DIR_ROOT, todays_repo))
+        logger.debug(output)
     except subprocess.CalledProcessError as e:
         logger.error('Error on initial gc!  Output:')
         logging.error(e.output)

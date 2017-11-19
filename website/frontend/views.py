@@ -141,7 +141,7 @@ def is_valid_domain(domain):
 def browse(request, source=''):
     if source not in SOURCES + ['']:
         raise Http404
-    pagestr=request.REQUEST.get('page', '1')
+    pagestr = request.REQUEST.get('page', '1')
     try:
         page = int(pagestr)
     except ValueError:

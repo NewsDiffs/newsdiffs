@@ -1,1 +1,1 @@
-eb create newsdiffs-web-dev --cname newsdiffs-dev --single --cfg dev
+eb create newsdiffs-web-dev --cname newsdiffs-dev --single --cfg web-dev

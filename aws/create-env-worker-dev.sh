@@ -1,1 +1,1 @@
-eb create newsdiffs-worker-dev --single --tier worker
+eb create newsdiffs-worker-dev --cname newsdiffs-worker-dev --single --tier worker --cfg worker-dev

@@ -95,9 +95,9 @@ class Version(models.Model):
     diff_json = models.CharField(max_length=255, null=True)
 
     def text(self):
+        revision = self.v + ':' + self.article.filename()
         try:
-            return subprocess.check_output([GIT_PROGRAM, 'show',
-                                            self.v+':'+self.article.filename()],
+            return subprocess.check_output([GIT_PROGRAM, 'show', revision],
                                            cwd=self.article.full_git_dir)
         except subprocess.CalledProcessError as e:
             return None
