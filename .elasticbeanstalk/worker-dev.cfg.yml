@@ -1,7 +1,7 @@
 AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
   DateCreated: '1511046297000'
-  DateModified: '1511186609647'
+  DateModified: '1511199300624'
   Description: Configuration created from the EB CLI using "eb config save".
 EnvironmentTier:
   Name: Worker
@@ -17,7 +17,6 @@ OptionSettings:
     CONSOLE_LOG_LEVEL: DEBUG
     CONTINUOUS_SCRAPER_LOCK_FILE_PATH: /opt/python/run/scraper/scraper.lock
     FILE_SYSTEM_ID: fs-a16741e8
-    LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
     LOG_FILE_LOG_LEVEL: DEBUG
     LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
   aws:elasticbeanstalk:command:

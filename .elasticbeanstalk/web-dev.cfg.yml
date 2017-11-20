@@ -1,6 +1,6 @@
 AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
-  DateModified: '1511186617950'
+  DateModified: '1511199294443'
 EnvironmentTier:
   Name: WebServer
   Type: Standard
@@ -14,7 +14,6 @@ OptionSettings:
     CONFIG_S3_KEY: dev/env-vars.sh
     CONSOLE_LOG_LEVEL: DEBUG
     FILE_SYSTEM_ID: fs-a16741e8
-    LOG_FILE_PATH: /opt/python/log/newsdiffs-web.log
     LOG_FILE_LOG_LEVEL: DEBUG
     LOG_FILE_PATH: /opt/python/log/newsdiffs-web.log
   aws:elasticbeanstalk:command:
