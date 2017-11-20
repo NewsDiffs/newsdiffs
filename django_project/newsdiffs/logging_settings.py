@@ -1,6 +1,17 @@
+from datetime import datetime
+import logging
 import os
 
+from dateutil.tz import tzlocal
+
 from util.Bag import Bag
+
+
+class IsoDateTimeFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        ct = datetime.fromtimestamp(record.created, tzlocal())
+        return ct.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+
 
 # https://django-doc-test1.readthedocs.io/en/stable-1.5.x/topics/logging.html
 formatters = Bag(verbose='verbose')
@@ -11,9 +22,8 @@ LOGGING = {
     'disable_existing_loggers': True,
     'formatters': {
         formatters.verbose: {
-            'format':
-                '%(asctime)s.%(msecs)03d [%(name)s] %(levelname)s: %(message)s',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
+            '()': 'newsdiffs.logging_settings.IsoDateTimeFormatter',
+            'format': '%(asctime)s [%(name)s] %(levelname)s: %(message)s',
         },
     },
     'handlers': {

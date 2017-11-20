@@ -1,0 +1,2 @@
+# Redirect stderror to stdout before redirecting stdout to /dev/null so we can still see errors
+sudo -u wsgi sh -c '. /opt/python/current/env; /opt/python/run/venv/bin/python continuous_scraper.py 2>&1 > /dev/null' &
