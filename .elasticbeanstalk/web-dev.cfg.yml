@@ -21,7 +21,7 @@ OptionSettings:
     BatchSizeType: Percentage
   aws:elasticbeanstalk:container:python:
     NumProcesses: 2
-    WSGIPath: website/wsgi.py
+    WSGIPath: django_project/newsdiffs/wsgi.py
   aws:elasticbeanstalk:container:python:staticfiles:
     /static/: static/
     favicon.ico: static/img/favicon.ico

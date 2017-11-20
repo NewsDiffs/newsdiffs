@@ -59,8 +59,8 @@ contents to a new file rather than change the example.
 
 ```
 $ source config/local-example.sh
-$ python website/manage.py syncdb
-$ python website/manage.py migrate
+$ python django_project/manage.py syncdb
+$ python django_project/manage.py migrate
 $ mkdir articles
 ```
 
@@ -78,6 +78,9 @@ $ mkdir articles
 | `CONSOLE_LOG_LEVEL`  | the level at which to log to console (default: ERROR)
 | `LOG_FILE_PATH`      | WSGI-only: the path to which to log
 | `LOG_FILE_LOG_LEVEL` | WSGI-only: the level at which to log to file
+| `CONTINUOUS_SCRAPER_RUN_DIR` | A directory writable by `EB_CONFIG_APP_USER` where the PID file can go.  If present on deploy, then the continuous scraper will be started.
+| `CONFIG_S3_BUCKET`   | An S3 bucket name.  If present, the app will load env. vars. from `CONFIG_S3_KEY`.
+| `CONFIG_S3_KEY`      | The key in `CONFIG_S3_BUCKET` containing env. vars.  Currently only `.sh` files are supported with lines like `export VAR=VAL`
 
 Running NewsDiffs Locally
 -------------------------
@@ -85,7 +88,7 @@ Running NewsDiffs Locally
 Do the initial setup above.  Then to start the webserver for testing:
 
 ```
-$ source config/local-example.sh && python website/manage.py runserver
+$ source config/local-example.sh && python django_project/manage.py runserver
 ```
 
 and visit [http://localhost:8000/](http://localhost:8000/)
@@ -115,20 +118,20 @@ some websites are parsed correctly in only one version.
 Then run
   
 ```
-$ source config/local-example.sh && python website/manage.py scraper
+$ source config/local-example.sh && python django_project/manage.py scraper
 ```
 
 This will populate the articles repository with a list of current news
 articles.  This is a snapshot at a single time, so the website will
 not yet have any changes. To get changes, wait some time (say, 3
-hours) and run 'python website/manage.py scraper' again.  If any of
+hours) and run 'python django_project/manage.py scraper' again.  If any of
 the articles have changed in the intervening time, the website should
 display the associated changes.
 
 To run the scraper every hour, run something like:
 
 ```
-$ while true; do python website/manage.py scraper; sleep 60m; done
+$ while true; do python django_project/manage.py scraper; sleep 60m; done
 ```
 
 or make a cron job.

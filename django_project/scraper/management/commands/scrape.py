@@ -15,10 +15,10 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q
 from optparse import make_option
 
-from website.frontend import models
-from website.scraper import parsers
-from website.scraper import diff_match_patch
-from website.scraper.parsers.baseparser import canonicalize
+from frontend import models
+from scraper import parsers
+from scraper import diff_match_patch
+from scraper.parsers.baseparser import canonicalize
 
 GIT_PROGRAM = 'git'
 

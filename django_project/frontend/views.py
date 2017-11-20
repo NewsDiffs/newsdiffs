@@ -9,8 +9,8 @@ from django.core.urlresolvers import reverse
 from django.template import Context, RequestContext, loader
 from django.views.decorators.cache import cache_page
 
-from website.frontend import models
-from website.frontend.models import Article, Version
+from frontend import models
+from frontend.models import Article, Version
 
 logger = logging.getLogger(__name__)
 

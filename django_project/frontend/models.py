@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 from django.db import models
 
-from website.util import path_util
+from util import path_util
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(THIS_DIR))

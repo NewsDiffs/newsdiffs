@@ -5,7 +5,7 @@ import sys
 
 import boto3
 
-from website.util import path_util
+from util import path_util
 
 logger = logging.getLogger(__name__)
 s3 = boto3.resource('s3')
@@ -14,7 +14,7 @@ sh_setting_re = re.compile(r'export\s+([a-zA-Z0-9_]+)=(.*)')
 
 
 def configure_env():
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'newsdiffs.settings'
 
     project_dir = path_util.get_project_dir()
     logger.info('Appending {0} to sys.path'.format(project_dir))

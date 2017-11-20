@@ -1,4 +1,4 @@
-from website.util import env_util
+from util import env_util
 
 
 def test_read_sh_env_vars():

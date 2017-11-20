@@ -1,6 +1,6 @@
 from django.conf.urls import include, url
 
-from website import settings
+from newsdiffs import settings
 
 urlpatterns = []
 

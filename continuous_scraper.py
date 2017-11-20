@@ -10,7 +10,11 @@ from pid import PidFile
 
 run_dir = os.environ['CONTINUOUS_SCRAPER_RUN_DIR']
 cwd = os.environ['EB_CONFIG_APP_CURRENT']
-command_parts = '/opt/python/run/venv/bin/python manage.py scrape'.split()
+command_parts = [
+    '/opt/python/run/venv/bin/python',
+    'django_project/manage.py',
+    'scrape',
+]
 
 max_repeat_seconds = 2 * 60 * 60
 min_repeat_seconds = 5 * 60

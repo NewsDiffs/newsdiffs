@@ -3,7 +3,7 @@
 import logging
 import os
 
-from website.util import path_util
+from util import path_util
 
 DEBUG = os.environ.get('DJANGO_DEBUG', None) == 'True'
 TEMPLATE_DEBUG = DEBUG
@@ -69,7 +69,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
 )
 
-ROOT_URLCONF = 'urls'
+ROOT_URLCONF = 'newsdiffs.urls'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
