@@ -50,7 +50,7 @@ def read_sh_env_vars(s3_config):
 
 
 def read_s3_contents(bucket_name, key):
-    local_path = os.path.join('/opt/python/run', os.path.basename(key))
+    local_path = os.path.join('/opt/python/current/app', os.path.basename(key))
     try:
         s3.Bucket(bucket_name).download_file(key, local_path)
         with open(local_path, 'r') as s3_config_file:
