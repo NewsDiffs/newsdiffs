@@ -5,15 +5,11 @@ OptionSettings:
     IamInstanceProfile: aws-elasticbeanstalk-ec2-role
     InstanceType: t2.micro
     EC2KeyName: newsdiffs-key-pair
-    SecurityGroups: newsdiffs-dev
   aws:elasticbeanstalk:application:environment:
     FILE_SYSTEM_ID: fs-a16741e8
-    MOUNT_DIRECTORY: /newsdiffs-efs
-    PYTHONPATH: /opt/python/current/app/website:$PYTHONPATH
     CONSOLE_LOG_LEVEL: DEBUG
     LOG_FILE_PATH: /opt/python/log/newsdiffs-web.log
     LOG_FILE_LOG_LEVEL: DEBUG
-    ARTICLES_DIR_ROOT: /newsdiffs-efs/articles/
     DB_ENGINE: django.db.backends.mysql
     DB_HOST: newsdiffs-1.cluster-cenpzaz45rbm.us-east-1.rds.amazonaws.com
     DB_PORT: '3306'

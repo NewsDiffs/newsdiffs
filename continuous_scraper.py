@@ -9,10 +9,8 @@ from pid import PidFile
 
 lock_file_path = os.environ['CONTINUOUS_SCRAPER_LOCK_FILE_PATH']
 
-COMMAND = 'python manage.py scraper'.split()
-CWD = '/opt/python/current/app'
-OUTPUT_FILE = '/opt/python/log/continuous_scraper.out'
-ERROR_FILE = '/opt/python/log/continuous_scraper.err'
+command_parts = 'python website/manage.py scrape'.split()
+cwd = os.environ['EB_CONFIG_APP_CURRENT']
 
 max_time = 120 * 60
 min_time = 5 * 60
@@ -27,9 +25,7 @@ def wait_for(f, timeout):
     return f() is not None
 
 
-with PidFile(lock_file_path) as pid_file, \
-        open(OUTPUT_FILE, 'w') as out_file, \
-        open(ERROR_FILE, 'w') as error_file:
+with PidFile(lock_file_path) as pid_file:
     while True:
         # run at most once every min_time seconds
         curt = time.time()
@@ -38,7 +34,7 @@ with PidFile(lock_file_path) as pid_file, \
         next_time = curt + min_time
 
         logger.info('Beginning scraper')
-        p = subprocess.Popen(COMMAND, stdout=out_file, stderr=error_file, cwd=CWD)
+        p = subprocess.Popen(command_parts, cwd=cwd)
 
         if not wait_for(p.poll, max_time):
             logger.error('Killing process!')

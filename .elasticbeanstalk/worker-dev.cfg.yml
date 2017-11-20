@@ -9,14 +9,10 @@ OptionSettings:
     IamInstanceProfile: aws-elasticbeanstalk-ec2-role
     InstanceType: t2.micro
     EC2KeyName: newsdiffs-key-pair
-    SecurityGroups: newsdiffs-dev
   aws:elasticbeanstalk:application:environment:
     FILE_SYSTEM_ID: fs-a16741e8
-    MOUNT_DIRECTORY: /newsdiffs-efs
-    PYTHONPATH: /opt/python/current/app/website:$PYTHONPATH
     CONTINUOUS_SCRAPER_LOCK_FILE_PATH: /opt/python/run/scraper/scraper.lock
     CONSOLE_LOG_LEVEL: DEBUG
-    ARTICLES_DIR_ROOT: /newsdiffs-efs/articles/
     LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
     LOG_FILE_LOG_LEVEL: DEBUG
     DB_ENGINE: django.db.backends.mysql

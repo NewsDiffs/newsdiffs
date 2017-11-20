@@ -1,1 +1,5 @@
-eb create newsdiffs-worker-dev --cname newsdiffs-worker-dev --single --tier worker --cfg worker-dev
+eb create newsdiffs-worker-dev \
+  --single \
+  --tier worker \
+  --vpc.securitygroups newsdiffs-dev \
+  --cfg worker-dev
