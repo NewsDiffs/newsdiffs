@@ -7,7 +7,8 @@ import os
 
 from pid import PidFile
 
-lock_file_path = os.environ['CONTINUOUS_SCRAPER_LOCK_FILE_PATH']
+run_dir = os.environ['CONTINUOUS_SCRAPER_RUN_DIR']
+pid_file_path = os.path.join(run_dir, 'scraper.pid')
 
 command_parts = 'python website/manage.py scrape'.split()
 cwd = os.environ['EB_CONFIG_APP_CURRENT']
@@ -25,7 +26,7 @@ def wait_for(f, timeout):
     return f() is not None
 
 
-with PidFile(lock_file_path) as pid_file:
+with PidFile(pid_file_path) as pid_file:
     while True:
         # run at most once every min_time seconds
         curt = time.time()

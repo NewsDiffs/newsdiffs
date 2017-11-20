@@ -15,7 +15,7 @@ OptionSettings:
   aws:elasticbeanstalk:application:environment:
     CONFIG_S3_KEY: dev/env-vars.sh
     CONSOLE_LOG_LEVEL: DEBUG
-    CONTINUOUS_SCRAPER_LOCK_FILE_PATH: /opt/python/run/scraper/scraper.lock
+    CONTINUOUS_SCRAPER_RUN_DIR: /opt/python/run/scraper
     FILE_SYSTEM_ID: fs-a16741e8
     LOG_FILE_LOG_LEVEL: DEBUG
     LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
