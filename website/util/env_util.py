@@ -31,7 +31,7 @@ def load_s3_env_vars():
     bucket_name = os.environ['CONFIG_S3_BUCKET']
     key = os.environ['CONFIG_S3_KEY']
     base_name, file_extension = os.path.splitext(key)
-    logger.debug('Retrieving env. vars from s3://%s/%s', (bucket_name, key))
+    logger.debug('Retrieving env. vars from s3://%s/%s', bucket_name, key)
     s3_config = read_s3_contents(bucket_name, key)
     if file_extension == '.sh':
         s3_env_vars = read_sh_env_vars(s3_config)
