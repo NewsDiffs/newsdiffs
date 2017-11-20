@@ -147,11 +147,11 @@ The procedure for adding new sites to the scraper is outlined in
    the other parsers in that directory.  You can test the parser
    with by running, e.g.,
 
-    ```$ python parsers/test_parser.py bbc.BBCParser```
+    ```$ python parsers/parser_tester.py bbc.BBCParser```
     
     which will output a list of URLs to track, and
     
-    ```$ python parsers/test_parser.py bbc.BBCParser http://www.bbc.co.uk/news/uk-21649494```
+    ```$ python parsers/parser_tester.py bbc.BBCParser http://www.bbc.co.uk/news/uk-21649494```
     
     which will output the text that NewsDiffs would store.
 

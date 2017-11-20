@@ -2,9 +2,9 @@
 """
 Test a parser.  For example:
 
-$ python test_parser.py nyt.NYTParser
+$ python parser_tester.py nyt.NYTParser
 [list of URLs to check]
-$ python test_parser.py nyt.NYTParser <one of those URLs>
+$ python parser_tester.py nyt.NYTParser <one of those URLs>
 [text of article to store]
 """
 
@@ -13,7 +13,7 @@ import sys
 try:
     parsername = sys.argv[1]
 except IndexError:
-    print 'Usage: test_parser.py <modulename>.<classname> [<url_to_check>]'
+    print 'Usage: parser_tester.py <modulename>.<classname> [<url_to_check>]'
     sys.exit()
 
 try:

@@ -12,16 +12,15 @@ import logging.config
 
 from django.core.wsgi import get_wsgi_application
 
-import settings
-import util.env
+from website import logging_settings
+from website.util import env_util
 
 # util may depend upon logging, so set it up first
-logging.config.dictConfig(settings.LOGGING)
+logging.config.dictConfig(logging_settings.LOGGING)
+
+env_util.configure_env()
 
 logger = logging.getLogger(__name__)
-
-util.env.configure_env()
-
 logger.debug('Creating Django WSGI application')
 
 application = get_wsgi_application()

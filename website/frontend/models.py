@@ -1,18 +1,18 @@
 import subprocess
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import json
-from django.db import models, IntegrityError
+from django.db import models
 
-import util.path
+from website.util import path_util
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
 ARTICLES_DIR_ROOT = os.environ['ARTICLES_DIR_ROOT']
 if not os.path.isabs(ARTICLES_DIR_ROOT):
     ARTICLES_DIR_ROOT = \
-        util.path.prepend_project_dir(os.path.pardir, ARTICLES_DIR_ROOT)
+        path_util.prepend_project_dir(os.path.pardir, ARTICLES_DIR_ROOT)
 
 GIT_PROGRAM = 'git'
 

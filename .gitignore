@@ -36,3 +36,6 @@ pip-log.txt
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# pytest
+.cache

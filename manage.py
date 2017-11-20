@@ -6,12 +6,12 @@ if __name__ == "__main__":
 
     from django.core.management import execute_from_command_line
 
-    import settings
-    import util.env
+    from website import logging_settings
+    from website.util import env_util
 
     # util may depend upon logging, so set it up first
-    logging.config.dictConfig(settings.LOGGING)
+    logging.config.dictConfig(logging_settings.LOGGING)
 
-    util.env.configure_env()
+    env_util.configure_env()
 
     execute_from_command_line(sys.argv)

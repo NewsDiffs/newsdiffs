@@ -6,20 +6,16 @@ Platform:
   PlatformArn: arn:aws:elasticbeanstalk:us-east-1::platform/Python 2.7 running on 64bit Amazon Linux/2.6.0
 OptionSettings:
   aws:autoscaling:launchconfiguration:
-    IamInstanceProfile: aws-elasticbeanstalk-ec2-role
+    IamInstanceProfile: newsdiffs-dev-role
     InstanceType: t2.micro
     EC2KeyName: newsdiffs-key-pair
   aws:elasticbeanstalk:application:environment:
-    FILE_SYSTEM_ID: fs-a16741e8
-    CONTINUOUS_SCRAPER_LOCK_FILE_PATH: /opt/python/run/scraper/scraper.lock
+    CONFIG_S3_KEY: dev/env-vars.sh
     CONSOLE_LOG_LEVEL: DEBUG
+    CONTINUOUS_SCRAPER_LOCK_FILE_PATH: /opt/python/run/scraper/scraper.lock
+    FILE_SYSTEM_ID: fs-a16741e8
     LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
     LOG_FILE_LOG_LEVEL: DEBUG
-    DB_ENGINE: django.db.backends.mysql
-    DB_HOST: newsdiffs-1.cluster-cenpzaz45rbm.us-east-1.rds.amazonaws.com
-    DB_PORT: '3306'
-    DB_NAME: newsdiffs_dev
-    DB_USER: newsdiffs_dev
   aws:elasticbeanstalk:command:
     BatchSize: '30'
     BatchSizeType: Percentage

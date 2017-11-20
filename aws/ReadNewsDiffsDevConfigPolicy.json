@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadConfig",
+      "Action": ["s3:GetObject"],
+      "Effect": "Allow",
+      "Resource": ["arn:aws:s3:::newsdiffs-config/dev/*"]
+    },
+    {
+      "Sid": "AllowListingConfig",
+      "Action": ["s3:ListBucket"],
+      "Effect": "Allow",
+      "Resource": ["arn:aws:s3:::newsdiffs-config"],
+      "Condition": {"StringLike": {"s3:prefix": ["dev/*"]}}
+    }
+  ]
+}
