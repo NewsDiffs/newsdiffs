@@ -1,14 +1,17 @@
+AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
-  Description: Configuration created from the EB CLI using "eb config save".
   DateCreated: '1511046297000'
-  DateModified: '1511046297000'
-Platform:
-  PlatformArn: arn:aws:elasticbeanstalk:us-east-1::platform/Python 2.7 running on 64bit Amazon Linux/2.6.0
+  DateModified: '1511186609647'
+  Description: Configuration created from the EB CLI using "eb config save".
+EnvironmentTier:
+  Name: Worker
+  Type: SQS/HTTP
 OptionSettings:
   aws:autoscaling:launchconfiguration:
+    EC2KeyName: newsdiffs-key-pair
     IamInstanceProfile: newsdiffs-dev-role
     InstanceType: t2.micro
-    EC2KeyName: newsdiffs-key-pair
+    SecurityGroups: newsdiffs-dev
   aws:elasticbeanstalk:application:environment:
     CONFIG_S3_KEY: dev/env-vars.sh
     CONSOLE_LOG_LEVEL: DEBUG
@@ -16,15 +19,15 @@ OptionSettings:
     FILE_SYSTEM_ID: fs-a16741e8
     LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
     LOG_FILE_LOG_LEVEL: DEBUG
+    LOG_FILE_PATH: /opt/python/log/newsdiffs-scraper.log
   aws:elasticbeanstalk:command:
     BatchSize: '30'
     BatchSizeType: Percentage
   aws:elasticbeanstalk:environment:
-    ServiceRole: aws-elasticbeanstalk-service-role
     EnvironmentType: SingleInstance
+    ServiceRole: aws-elasticbeanstalk-service-role
   aws:elasticbeanstalk:healthreporting:system:
     SystemType: enhanced
-EnvironmentTier:
-  Name: Worker
-  Type: SQS/HTTP
-AWSConfigurationTemplateVersion: 1.1.0.0
+Platform:
+  PlatformArn: arn:aws:elasticbeanstalk:us-east-1::platform/Python 2.7 running on
+    64bit Amazon Linux/2.6.0
