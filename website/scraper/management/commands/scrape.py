@@ -57,6 +57,9 @@ class Command(BaseCommand):
         todays_repo = get_and_make_git_repo()
         logger.debug("Today's Git repo: %s", todays_repo)
 
+        git_dir = os.path.join(models.ARTICLES_DIR_ROOT, todays_repo)
+        configure_git(git_dir)
+
         logger.debug('Beginning updating articles')
         update_articles(todays_repo)
         logger.debug('Done updating articles')
@@ -68,6 +71,13 @@ class Command(BaseCommand):
         logger.info('Done scraping.')
 
 # Begin utility functions
+
+
+def configure_git(git_dir):
+    subprocess.check_output([GIT_PROGRAM, 'config', 'user.email', 
+                             'scraper@newsdiffs.org'], cwd=git_dir)
+    subprocess.check_output([GIT_PROGRAM, 'config', 'user.name', 
+                             'NewsDiffs Scraper'], cwd=git_dir)
 
 
 def mkdir_p(path):
@@ -97,8 +107,7 @@ def make_new_git_repo(full_dir):
     initial_commit_file = os.path.join(full_dir, 'initial-commit-file')
     open(initial_commit_file, 'w').close()
 
-    subprocess.check_output([GIT_PROGRAM, 'config', 'user.email', 'scraper@newsdiffs.org'], cwd=full_dir)
-    subprocess.check_output([GIT_PROGRAM, 'config', 'user.name', 'NewsDiffs Scraper'], cwd=full_dir)
+    configure_git(full_dir)
 
     subprocess.check_output([GIT_PROGRAM, 'add', initial_commit_file],
                             cwd=full_dir)
