@@ -1,7 +1,7 @@
 AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
   DateCreated: '1511046297000'
-  DateModified: '1511199300624'
+  DateModified: '1511244199017'
   Description: Configuration created from the EB CLI using "eb config save".
 EnvironmentTier:
   Name: Worker

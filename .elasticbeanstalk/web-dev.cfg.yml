@@ -1,6 +1,6 @@
 AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
-  DateModified: '1511240639587'
+  DateModified: '1511244192628'
 EnvironmentTier:
   Name: WebServer
   Type: Standard
@@ -16,6 +16,7 @@ OptionSettings:
     FILE_SYSTEM_ID: fs-a16741e8
     LOG_FILE_LOG_LEVEL: DEBUG
     LOG_FILE_PATH: /opt/python/log/newsdiffs-web.log
+    PYTHONPATH: /opt/python/current/app/django_project:$PYTHONPATH
   aws:elasticbeanstalk:command:
     BatchSize: '30'
     BatchSizeType: Percentage
