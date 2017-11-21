@@ -37,7 +37,8 @@ class Article(models.Model):
     class Meta:
         db_table = 'Articles'
 
-    url = models.CharField(max_length=2048, blank=False, unique=True,
+    # MySQL enforces a max-length of 255 for unique=True
+    url = models.CharField(max_length=255, blank=False, unique=True,
                            db_index=True)
     initial_date = models.DateTimeField(auto_now_add=True)
     last_update = models.DateTimeField(null=True)

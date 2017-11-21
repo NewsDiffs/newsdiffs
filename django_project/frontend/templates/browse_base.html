@@ -39,7 +39,7 @@
           {{last_version.byline}}
         </td>
         {% for difflink, version in versions %}
-          <td>{{version.date}}</td>
+          <td>{{version.date}} UTC</td>
           {% if difflink %}
               <td><a href="{{difflink}}">(Compare)</a></td>
             </tr>

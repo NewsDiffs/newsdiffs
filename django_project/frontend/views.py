@@ -164,11 +164,13 @@ def browse(request, source=''):
 
     articles = get_articles(source=source, distance=page-1)
     return render_to_response('browse.html', {
-            'source': source, 'articles': articles,
-            'page': page,
-            'page_list': page_list,
-            'sources': SOURCES
-            })
+        'source': source,
+        'articles': articles,
+        'first_update': first_update,
+        'page': page,
+        'page_list': page_list,
+        'sources': SOURCES
+    })
 
 
 @cache_page(os.environ.get('CACHE_DURATION_MINUTES', 5))

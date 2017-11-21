@@ -9,9 +9,6 @@ class Migration(SchemaMigration):
 
     def forwards(self, orm):
 
-        # Changing field 'Article.url'
-        db.alter_column('Articles', 'url', self.gf('django.db.models.fields.CharField')(unique=True, max_length=2048))
-
         # Changing field 'Article.last_update'
         db.alter_column('Articles', 'last_update', self.gf('django.db.models.fields.DateTimeField')(null=True))
 
@@ -22,9 +19,6 @@ class Migration(SchemaMigration):
         db.alter_column('Articles', 'last_check', self.gf('django.db.models.fields.DateTimeField')(null=True))
 
     def backwards(self, orm):
-
-        # Changing field 'Article.url'
-        db.alter_column('Articles', 'url', self.gf('django.db.models.fields.CharField')(max_length=255, unique=True))
 
         # Changing field 'Article.last_update'
         db.alter_column('Articles', 'last_update', self.gf('django.db.models.fields.DateTimeField')())
@@ -43,7 +37,7 @@ class Migration(SchemaMigration):
             'initial_date': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'last_check': ('django.db.models.fields.DateTimeField', [], {'null': 'True'}),
             'last_update': ('django.db.models.fields.DateTimeField', [], {'null': 'True'}),
-            'url': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '2048', 'db_index': 'True'})
+            'url': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '255', 'db_index': 'True'})
         },
         u'frontend.upvote': {
             'Meta': {'object_name': 'Upvote', 'db_table': "'upvotes'"},
