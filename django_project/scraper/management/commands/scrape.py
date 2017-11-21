@@ -6,6 +6,7 @@ import httplib
 import logging
 import os
 import subprocess
+import sys
 import textwrap
 import time
 import traceback
@@ -19,18 +20,19 @@ from frontend import models
 from scraper import parsers
 from scraper import diff_match_patch
 from scraper.parsers.baseparser import canonicalize
+from util import url_util
 
 GIT_PROGRAM = 'git'
 
 logger = logging.getLogger(__name__)
 
 
+class IndexLockError(OSError):
+    pass
+
+
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
-        make_option('--update',
-                    action='store_true',
-                    default=False,
-                    help='DEPRECATED; this is the default'),
         make_option('--all',
                     action='store_true',
                     default=False,
@@ -70,7 +72,18 @@ class Command(BaseCommand):
 
         logger.info('Done scraping.')
 
-# Begin utility functions
+
+def cleanup_git_repo(git_dir):
+    #Remove index.lock if 5 minutes old
+    for name in ['.git/index.lock', '.git/refs/heads/master.lock', '.git/gc.pid.lock']:
+        fname = os.path.join(git_dir, name)
+        try:
+            stat = os.stat(fname)
+        except OSError:
+            return
+        age = time.time() - stat.st_ctime
+        if age > 60*5:
+            os.remove(fname)
 
 
 def configure_git(git_dir):
@@ -80,22 +93,18 @@ def configure_git(git_dir):
                              'NewsDiffs Scraper'], cwd=git_dir)
 
 
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST:
-            pass
-        else:
-            raise
+def get_and_make_git_repo():
+    result = time.strftime('%Y-%m', time.localtime())
+    full_path = os.path.join(models.ARTICLES_DIR_ROOT, result)
+    if not os.path.exists(full_path+'/.git'):
+        logger.debug('Creating Git repo at: %s', full_path)
+        make_new_git_repo(full_path)
 
+        # Make directories world-readable to avoid permissions problems
+        # between the scraper and web app
+        os.chmod(full_path, 0o777)
 
-def canonicalize_url(url):
-    return url.split('?')[0].split('#')[0].strip()
-
-
-class IndexLockError(OSError):
-    pass
+    return result
 
 
 def make_new_git_repo(full_dir):
@@ -113,20 +122,6 @@ def make_new_git_repo(full_dir):
                             cwd=full_dir)
     subprocess.check_output([GIT_PROGRAM, 'commit', '-m', 'Initial commit'],
                             cwd=full_dir)
-
-
-def get_and_make_git_repo():
-    result = time.strftime('%Y-%m', time.localtime())
-    full_path = os.path.join(models.ARTICLES_DIR_ROOT, result)
-    if not os.path.exists(full_path+'/.git'):
-        logger.debug('Creating Git repo at: %s', full_path)
-        make_new_git_repo(full_path)
-
-        # Make directories world-readable to avoid permissions problems
-        # between the scraper and web app
-        os.chmod(full_path, 0o777)
-
-    return result
 
 
 def all_git_repos():
@@ -158,12 +153,12 @@ def run_git_command(command, git_dir, max_timeout=15):
 
 
 def get_all_article_urls():
-    ans = set()
+    all_urls = set()
     for parser in parsers.parsers:
-        logger.info('Looking up %s' % parser.domains)
+        logger.info('Extracting URLs from: %s' % parser.domains)
         urls = parser.feed_urls()
-        ans = ans.union(map(canonicalize_url, urls))
-    return ans
+        all_urls = all_urls.union(map(canonicalize_url, urls))
+    return all_urls
 
 
 CHARSET_LIST = """
@@ -188,7 +183,7 @@ windows-1255
 """.split()
 
 
-def is_boring(old, new):
+def is_difference_boring(old, new):
     oldu = canonicalize(old.decode('utf8'))
     newu = canonicalize(new.decode('utf8'))
 
@@ -219,14 +214,12 @@ def get_diff_info(old, new):
     dmp.Diff_Timeout = 3 # seconds; default of 1 is too little
     diff = dmp.diff_main(old, new)
     dmp.diff_cleanupSemantic(diff)
-    chars_added   = sum(len(text) for (sign, text) in diff if sign == 1)
+    chars_added = sum(len(text) for (sign, text) in diff if sign == 1)
     chars_removed = sum(len(text) for (sign, text) in diff if sign == -1)
     return dict(chars_added=chars_added, chars_removed=chars_removed)
 
 
 def add_to_git_repo(data, filename, article):
-    start_time = time.time()
-
     # Don't use full path because it can exceed the maximum filename length
     # full_path = os.path.join(models.ARTICLES_DIR_ROOT, filename)
     os.chdir(article.full_git_dir)
@@ -240,7 +233,7 @@ def add_to_git_repo(data, filename, article):
         curr_dir = os.path.join(curr_dir, part)
         os.chmod(curr_dir, 0o777)
 
-    boring = False
+    is_boring = False
     diff_info = None
 
     try:
@@ -262,41 +255,41 @@ def add_to_git_repo(data, filename, article):
 
     if already_exists:
         if previous == data:
-            logger.debug('Article matches current version in repo')
+            logger.debug("Article %d data hasn't changed", article.id)
             return None, None, None
 
-        #Now check how many times this same version has appeared before
-        my_hash = run_git_command(['hash-object', filename],
-                                  article.full_git_dir).strip()
+        # Now check how many times this same version has appeared before
+        # my_hash = run_git_command(['hash-object', filename],
+        #                           article.full_git_dir).strip()
+        #
+        # commits = [v.v for v in article.versions()]
+        # if len(commits) > 2:
+        #     logger.debug('Checking for duplicates among %s commits',
+        #                  len(commits))
+        #
+        #     def get_hash(version):
+        #         """Return the SHA1 hash of filename in a given version"""
+        #         output = run_git_command(['ls-tree', '-r', version, filename],
+        #                                  article.full_git_dir)
+        #         return output.split()[2]
+        #     # What's the difference between `hashes` and `commits`?
+        #     # `hashes` is the file hash, `commits` are the commit hashes
+        #     hashes = map(get_hash, commits)
+        #
+        #     number_equal = sum(1 for h in hashes if h == my_hash)
+        #
+        #     logger.debug('Got %s previous version files have an identical hash', number_equal)
+        #
+        #     # TODO if the version has reverted to a previous version, the
+        #     # system might not show it...
+        #     if number_equal >= 2:  # Refuse to list a version more than twice
+        #
+        #         # Overwrite the file
+        #         run_git_command(['checkout', filename], article.full_git_dir)
+        #         return None, None, None
 
-        # This is going to look this up separately each time
-        commits = [v.v for v in article.versions()]
-        # Why > 2?  Why not > 1?
-        if len(commits) > 2:
-            logger.debug('Checking for duplicates among %s commits',
-                         len(commits))
-            def get_hash(version):
-                """Return the SHA1 hash of filename in a given version"""
-                output = run_git_command(['ls-tree', '-r', version, filename],
-                                         article.full_git_dir)
-                return output.split()[2]
-            # What's the difference between `hashes` and `commits`?
-            # `hashes` is the file hash, `commits` are the commit hashes
-            hashes = map(get_hash, commits)
-
-            number_equal = sum(1 for h in hashes if h == my_hash)
-
-            logger.debug('Got %s previous version files have an identical hash', number_equal)
-
-            # So if the version has reverted to a previous version, the system might not show it...
-            if number_equal >= 2: #Refuse to list a version more than twice
-
-                # Overwrite the file
-                run_git_command(['checkout', filename], article.full_git_dir)
-                return None, None, None
-
-        if is_boring(previous, data):
-            boring = True
+        if is_difference_boring(previous, data):
+            is_boring = True
         else:
             diff_info = get_diff_info(previous, data)
 
@@ -305,10 +298,11 @@ def add_to_git_repo(data, filename, article):
         commit_message = 'Adding file %s' % filename
     else:
         commit_message = 'Change to %s' % filename
-    logger.debug('Running git commit... %s', time.time()-start_time)
-    run_git_command(['commit', filename, '-m', commit_message],
-                    article.full_git_dir)
-    logger.debug('git revlist... %s', time.time()-start_time)
+    command_args = ['commit', filename, '-m', commit_message]
+    logger.debug('Committing article %d version data to Git with command: %s',
+                 article.id, ' '.join(command_args))
+    run_git_command(command_args, article.full_git_dir)
+    logger.debug('Done committing article %d version data to Git.', article.id)
 
     # Now figure out what the commit ID was.
     # I would like this to be "git rev-list HEAD -n1 filename"
@@ -316,74 +310,74 @@ def add_to_git_repo(data, filename, article):
     # first line is output.  Without filename, it does abort; therefore
     # we do this and hope no intervening commit occurs.
     # (looks like the slowness is fixed in git HEAD)
-    v = run_git_command(['rev-list', 'HEAD', '-n1'],
-                        article.full_git_dir).strip()
-    logger.debug('done %s', time.time()-start_time)
-    return v, boring, diff_info
+    commit_hash = run_git_command(['rev-list', 'HEAD', '-n1'], article.full_git_dir).strip()
+    logger.debug('New article %d version commit name: %s', article.id,
+                 commit_hash)
+    return commit_hash, is_boring, diff_info
 
 
 def load_article(url):
     try:
-        parser = parsers.get_parser(url)
+        parser_class = parsers.get_parser(url)
     except KeyError:
-        logger.info('Unable to parse domain, skipping')
-        return
+        domain = url_util.get_url_domain(url)
+        logger.error('No parser configured for domain: %s', domain)
+        return None
+
+    logger.debug('Initializing parser for URL: %s', url)
     try:
-        parsed_article = parser(url)
-    except (AttributeError, urllib2.HTTPError, httplib.HTTPException), e:
-        if isinstance(e, urllib2.HTTPError) and e.msg == 'Gone':
-            return
-        logger.error('Exception when parsing %s', url)
-        logger.error(traceback.format_exc())
-        logger.error('Continuing')
-        return
-    if not parsed_article.real_article:
-        return
-    return parsed_article
+        parser = parser_class(url)
+    except (AttributeError, urllib2.HTTPError, httplib.HTTPException), ex:
+        if isinstance(ex, urllib2.HTTPError) and ex.msg == 'Gone':
+            logger.warn('Article missing')
+            return None
+        logger.exception(ex)
+        return None
+    if not parser.real_article:
+        logger.debug('Not a real article')
+        return None
+    return parser
 
 
-#Update url in git
-#Return whether it changed
 def update_article(article):
-    parsed_article = load_article(article.url)
-    if parsed_article is None:
+    parser = load_article(article.url)
+    if parser is None:
+        logger.debug('parser is None, cannot update article')
         return
-    to_store = unicode(parsed_article).encode('utf8')
-    t = datetime.now()
-    logger.debug('Article parsed; trying to store')
-    v, boring, diff_info = add_to_git_repo(to_store,
-                                           article.filename(),
-                                           article)
-    if v:
-        logger.info('Modifying! new blob: %s', v)
-        v_row = models.Version(v=v,
-                               boring=boring,
-                               title=parsed_article.title,
-                               byline=parsed_article.byline,
-                               date=t,
-                               article=article,
-                               )
-        v_row.diff_info = diff_info
-        v_row.save()
-        if not boring:
-            article.last_update = t
-            article.save()
+    string_representation = unicode(parser).encode('utf8')
+    commit_hash, is_boring, diff_info = \
+        add_to_git_repo(string_representation, article.filename(), article)
+    if commit_hash:
+        version = models.Version(v=commit_hash,
+                                 boring=is_boring,
+                                 title=parser.title,
+                                 byline=parser.byline,
+                                 date=parser.parse_time,
+                                 article=article,
+                                 )
+        version.diff_info = diff_info
+        version.save()
+        logger.debug('Saved new version %d', version.id)
+        if not is_boring:
+            article.last_update = parser.parse_time
 
 
 def update_articles(todays_git_dir):
-    logger.info('Starting scraper; looking for new URLs')
     all_urls = get_all_article_urls()
-    logger.info('Got all %s urls; storing to database' % len(all_urls))
+    logger.info('Processing %d found articles', len(all_urls))
+    skipped_url_count = 0
+    new_article_count = 0
     for i, url in enumerate(all_urls):
-        logger.debug('Woo: %d/%d is %s' % (i+1, len(all_urls), url))
-        # Looks like it skips URLs longer than 255?
-        if len(url) > 255:  #Icky hack, but otherwise they're truncated in DB.
+        if len(url) > models.Article._meta.get_field('url').max_length:
+            skipped_url_count += 1
+            logger.debug('Skipping URL because it is too long: %s', url)
             continue
-        # Is there an index on this column?
         if not models.Article.objects.filter(url=url).count():
-            logger.debug('Adding Article {0}'.format(url))
+            new_article_count += 1
+            logger.debug('Adding article %s', url)
             models.Article(url=url, git_dir=todays_git_dir).save()
-    logger.info('Done storing to database')
+    logger.info('Added %d new URLs', new_article_count)
+    logger.info('Skipped %d URLs that were too long', skipped_url_count)
 
 
 def get_update_delay(minutes_since_update):
@@ -403,45 +397,66 @@ def get_update_delay(minutes_since_update):
 
 
 def update_versions(todays_repo, do_all=False):
-    logger.info('Looking for articles to check')
     # For memory issues, restrict to the last year of articles
-    threshold = datetime.now() - timedelta(days=366)
-    article_query = models.Article.objects.exclude(git_dir='old').filter(Q(last_update__gt=threshold) |
-                                                                         Q(initial_date__gt=threshold))
-    articles = list(article_query)
-    total_articles = len(articles)
+    threshold = datetime.utcnow() - timedelta(days=366)
+    article_query = (
+        models.Article.objects
+            .exclude(git_dir='old')
+            .filter(Q(last_update__gt=threshold) |
+                    Q(initial_date__gt=threshold))
+    )
+    full_articles = list(article_query)
 
-    update_priority = lambda x: x.minutes_since_check() * 1. / get_update_delay(x.minutes_since_update())
-    articles = sorted([a for a in articles if update_priority(a) > 1 or do_all],
-                      key=update_priority, reverse=True)
+    def update_priority(article):
+        if not article.last_check:
+            return sys.float_info.max
+        return (
+            article.minutes_since_check() * 1. /
+            get_update_delay(article.minutes_since_update())
+        )
+    if not do_all:
+        filtered_articles = [a for a in full_articles if update_priority(a) > 1]
+    else:
+        filtered_articles = full_articles
 
-    logger.info('Checking %s of %s articles', len(articles), total_articles)
+    logger.info('%d out of %d articles passed the filter',
+                len(filtered_articles), len(full_articles))
+
+    sorted_articles = sorted(filtered_articles, key=update_priority,
+                             reverse=True)
 
     # Do git gc at the beginning, so if we're falling behind and killed
     # it still happens and I don't run out of quota. =)
-    logger.info('Starting with gc:')
+    logger.info('Starting Git garbage collection')
     try:
-        output = run_git_command(['gc'], os.path.join(models.ARTICLES_DIR_ROOT, todays_repo))
-        logger.debug(output)
+        output = run_git_command(['gc'], os.path.join(models.ARTICLES_DIR_ROOT,
+                                                      todays_repo))
+        if output:
+            logger.debug('Git garbage collection output: %s', output)
     except subprocess.CalledProcessError as e:
-        logger.error('Error on initial gc!  Output:')
-        logging.error(e.output)
+        logger.error('Git garbage collection error: %s', e.output)
         raise
+    logger.info('Finished Git garbage collection')
 
-    logger.info('Done with gc!')
+    for i, article in enumerate(sorted_articles):
+        logger.debug('Checking article %d (%d/%d): %s', article.id, i + 1,
+                     len(sorted_articles), article.url)
+        if article.last_check:
+            last_check = article.last_check.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            last_check_ago = datetime.utcnow() - article.last_check
+            logger.debug('Article %d last checked %s (%s ago)', article.id,
+                         last_check, last_check_ago)
+        else:
+            logger.debug('Article %d last checked never', article.id)
+        if article.last_update:
+            last_update = article.last_update.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            last_update_ago = datetime.utcnow() - article.last_update
+            logger.debug('Article %d last updated %s (%s ago)', article.id,
+                         last_update, last_update_ago)
+        else:
+            logger.debug('Article %d last updated never', article.id)
 
-    for i, article in enumerate(articles):
-        logger.debug('Woo: %s %s %s (%s/%s)',
-                     article.minutes_since_update(),
-                     article.minutes_since_check(),
-                     update_priority(article), i+1, len(articles))
-        delay = get_update_delay(article.minutes_since_update())
-        # isn't this inherent in update_priority being > 1 above?
-        if article.minutes_since_check() < delay and not do_all:
-            continue
-        logger.info('Considering %s', article.url)
-
-        article.last_check = datetime.now()
+        article.last_check = datetime.utcnow()
         try:
             update_article(article)
         except Exception, e:
@@ -453,18 +468,17 @@ def update_versions(todays_repo, do_all=False):
 
             logger.error(traceback.format_exc())
         article.save()
-        #logger.info('Ending with gc:')
-        #run_git_command(['gc'])
 
 
-#Remove index.lock if 5 minutes old
-def cleanup_git_repo(git_dir):
-    for name in ['.git/index.lock', '.git/refs/heads/master.lock', '.git/gc.pid.lock']:
-        fname = os.path.join(git_dir, name)
-        try:
-            stat = os.stat(fname)
-        except OSError:
-            return
-        age = time.time() - stat.st_ctime
-        if age > 60*5:
-            os.remove(fname)
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+
+
+def canonicalize_url(url):
+    return url_util.remove_parameters(url)

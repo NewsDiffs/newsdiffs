@@ -2,18 +2,18 @@
 
 import urllib2
 from BeautifulSoup import BeautifulSoup
-from StringIO import StringIO
 from datetime import datetime, timedelta
 import dateutil.parser
 import subprocess
 
 WEBSITE = 'http://www.newsdiffs.org/browse/'
-if datetime.now().hour < 8: #Overnight, less frequent updates
+if 5 < datetime.utcnow().hour < 11:  # Overnight, less frequent updates
     MAX_TIME = timedelta(minutes=120)
 else:
     MAX_TIME = timedelta(minutes=60)
     
 EMAILS = 'ecprice@mit.edu jenny8lee@gmail.com price@mit.edu carl.gieringer@gmail.com'.split()
+
 
 def send_alert_email(subject, body):
     email = 'Subject: %s\n\n%s' % (subject, body)
@@ -37,10 +37,11 @@ def get_update_time():
         raise
     return date
 
+
 if __name__ == '__main__':
     try:
         update_time = get_update_time()
-        time_since_update = datetime.now() - update_time
+        time_since_update = datetime.utcnow() - update_time
         print 'Update time:', time_since_update
         if time_since_update > MAX_TIME:
             send_alert_email('Trouble with newsdiffs.org',

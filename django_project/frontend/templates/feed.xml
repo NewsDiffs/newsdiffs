@@ -3,7 +3,7 @@
     <title>{{source}} diffs</title>
     <link rel="self" href="http://{{request.META.HTTP_HOST}}{% url 'feed' source %}"/>
     <link rel="alternate" href="http://{{request.META.HTTP_HOST}}{% url 'browse' source %}?page={{page}}"/>
-    <updated>{{last_update|date:"r"}}</updated>
+    <updated>{{last_update|date:"c"}}</updated>
     <author>
         <name>NewsDiffs</name>
     </author>

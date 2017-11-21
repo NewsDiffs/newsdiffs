@@ -7,6 +7,8 @@
 
 # List of parsers to import and use based on parser.domains
 
+from util import url_util
+
 parsers = """
 nyt.NYTParser
 cnn.CNNParser
@@ -24,11 +26,12 @@ for parsername in parsers:
     for domain in parser.domains:
         parser_dict[domain] = parser
 
+
 def get_parser(url):
-    return parser_dict[url.split('/')[2]]
+    return parser_dict[url_util.get_url_domain(url)]
+
 
 # Each feeder places URLs into the database to be checked periodically.
-
 parsers = [parser for parser in parser_dict.values()]
 
 __all__ = ['parsers', 'get_parser']

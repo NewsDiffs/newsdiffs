@@ -12,10 +12,11 @@ from django.views.decorators.cache import cache_page
 
 from frontend import models
 from frontend.models import Article, Version
+from util import url_util
 
 logger = logging.getLogger(__name__)
 
-OUT_FORMAT = '%B %d, %Y at %l:%M%P EDT'
+OUT_FORMAT = '%B %d, %Y at %l:%M %p UTC'
 
 SEARCH_ENGINES = """
 http://www.ask.com
@@ -39,30 +40,32 @@ def came_from_search_engine(request):
                for x in SEARCH_ENGINES)
 
 
-def Http400():
-    t = loader.get_template('404.html')
-    return HttpResponse(t.render(Context()), status=400)
-
-
 def get_first_update(source):
     if source is None:
         source = ''
-    updates = models.Article.objects.order_by('last_update').filter(last_update__gt=datetime.datetime(1990, 1, 1, 0, 0),
-                                                                    url__contains=source)
+    updates = (
+        models.Article.objects
+            .order_by('last_update')
+            .filter(last_update__isnull=False, url__contains=source)
+    )
     try:
         return updates[0].last_update
     except IndexError:
-        return datetime.datetime.now()
+        return datetime.datetime.utcnow()
 
 
 def get_last_update(source):
     if source is None:
         source = ''
-    updates = models.Article.objects.order_by('-last_update').filter(last_update__gt=datetime.datetime(1990, 1, 1, 0, 0), url__contains=source)
+    updates = (
+        models.Article.objects
+            .order_by('-last_update')
+            .filter(last_update__isnull=False, url__contains=source)
+    )
     try:
         return updates[0].last_update
     except IndexError:
-        return datetime.datetime.now()
+        return datetime.datetime.utcnow()
 
 
 def get_articles(source=None, distance=0):
@@ -70,7 +73,7 @@ def get_articles(source=None, distance=0):
     rx = re.compile(r'^https?://(?:[^/]*\.)%s/' % source if source else '')
 
     pagelength = datetime.timedelta(days=1)
-    end_date = datetime.datetime.now() - distance * pagelength
+    end_date = datetime.datetime.utcnow() - distance * pagelength
     start_date = end_date - pagelength
 
     version_query = '''
@@ -111,20 +114,21 @@ def get_articles(source=None, distance=0):
                                               (start_date, end_date))
     article_dict = {}
     for v in all_versions:
-        a=models.Article(id=v.article_id,
-                         url=v.a_url, initial_date=v.a_initial_date,
-                         last_update=v.a_last_update, last_check=v.a_last_check)
+        a = models.Article(id=v.article_id, url=v.a_url,
+                           initial_date=v.a_initial_date,
+                           last_update=v.a_last_update,
+                           last_check=v.a_last_check)
         v.article = a
         article_dict.setdefault(v.article, []).append(v)
 
     for article, versions in article_dict.items():
         url = article.url
         if not rx.match(url):
-            logger.info('REJECTING url: %s', url)
+            logger.info('URL did not pass filter: %s', url)
             continue
         if 'blogs.nytimes.com' in url: #XXX temporary
+            logger.info('Skipping blogs.nytimes.com URL: %s', url)
             continue
-
         if len(versions) < 2:
             continue
         rowinfo = get_rowinfo(article, versions)
@@ -154,16 +158,15 @@ def browse(request, source=''):
         return HttpResponseRedirect(reverse(browse))
 
     first_update = get_first_update(source)
-    num_pages = (datetime.datetime.now() - first_update).days + 1
+    num_pages = (datetime.datetime.utcnow() - first_update).days + 1
     page_list = range(1, 1 + num_pages)
     page_list = []
 
     articles = get_articles(source=source, distance=page-1)
     return render_to_response('browse.html', {
             'source': source, 'articles': articles,
-            'page':page,
+            'page': page,
             'page_list': page_list,
-            'first_update': first_update,
             'sources': SOURCES
             })
 
@@ -179,11 +182,11 @@ def feed(request, source=''):
         page = 1
 
     first_update = get_first_update(source)
-    last_update = get_last_update(source)
-    num_pages = (datetime.datetime.now() - first_update).days + 1
-    page_list=range(1, 1+num_pages)
+    num_pages = (datetime.datetime.utcnow() - first_update).days + 1
+    page_list = range(1, 1+num_pages)
 
     articles = get_articles(source=source, distance=page-1)
+    last_update = get_last_update(source)
     return render_to_response('feed.xml', {
             'source': source, 'articles': articles,
             'page':page,
@@ -208,12 +211,12 @@ def old_diffview(request):
         v1 = Version.objects.get(v=v1tag)
         v2 = Version.objects.get(v=v2tag)
     except Version.DoesNotExist:
-        return Http400()
+        raise Http404
 
     try:
         article = Article.objects.get(url=url)
     except Article.DoesNotExist:
-        return Http400()
+        raise Http404
 
     return redirect(reverse('diffview', kwargs=dict(vid1=v1.id,
                                                     vid2=v2.id,
@@ -231,7 +234,7 @@ def diffview(request, vid1, vid2, urlarg):
         raise Http404
 
     if v1.article != v2.article:
-        raise Exception('Diff versions %s and %s have different articles' %
+        raise Exception('versions %s and %s have different articles' %
                         (vid1, vid2))
 
     article = v1.article
@@ -249,15 +252,12 @@ def diffview(request, vid1, vid2, urlarg):
         dates.append(v.date.strftime(OUT_FORMAT))
 
         indices = [i for i, x in versions.items() if x == v]
-        if not indices:
-            #One of these versions doesn't exist / is boring
-            return Http400()
         index = indices[0]
         adjacent_versions.append([versions.get(index+offset)
                                   for offset in (-1, 1)])
 
     if any(x is None for x in texts):
-        return Http400()
+        raise Exception('missing text for some version')
 
     links = []
     for i in range(2):
@@ -345,7 +345,7 @@ def article_history(request, urlarg=''):
     if len(url) == 0:
         return HttpResponseRedirect(reverse(front))
 
-    url = url.split('?')[0]  #For if user copy-pastes from news site
+    url = url_util.remove_query_params(url)  #For if user copy-pastes from news site
 
     url = prepend_http(url)
 
@@ -355,7 +355,7 @@ def article_history(request, urlarg=''):
 
     # Give an error on urls with the wrong hostname without hitting the
     # database.  These queries are usually spam.
-    domain = url.split('/')[2]
+    domain = url_util.get_url_domain(url)
     if not is_valid_domain(domain):
         # Should really tell the users that it is missing
         return render_to_response('article_history_missing.html', {'url': url})
@@ -413,7 +413,7 @@ def upvote(request):
     diff_v2 = request.REQUEST.get('diff_v2')
     remote_ip = request.META.get('REMOTE_ADDR')
     article_id = Article.objects.get(url=article_url).id
-    models.Upvote(article_id=article_id, diff_v1=diff_v1, diff_v2=diff_v2, creation_time=datetime.datetime.now(), upvoter_ip=remote_ip).save()
+    models.Upvote(article_id=article_id, diff_v1=diff_v1, diff_v2=diff_v2, creation_time=datetime.datetime.utcnow(), upvoter_ip=remote_ip).save()
     return render_to_response('upvote.html')
 
 

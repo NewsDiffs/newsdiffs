@@ -32,20 +32,17 @@ PublicationDict = {
     'www.washingtonpost.com': 'Washington Post',
 }
 
-ancient = datetime(1901, 1, 1)
 
-
-# Create your models here.
 class Article(models.Model):
     class Meta:
         db_table = 'Articles'
 
-    url = models.CharField(max_length=255, blank=False, unique=True,
+    url = models.CharField(max_length=2048, blank=False, unique=True,
                            db_index=True)
     initial_date = models.DateTimeField(auto_now_add=True)
-    last_update = models.DateTimeField(default=ancient)
-    last_check = models.DateTimeField(default=ancient)
-    git_dir = models.CharField(max_length=255, blank=False, default='old')
+    last_update = models.DateTimeField(null=True)
+    last_check = models.DateTimeField(null=True)
+    git_dir = models.CharField(max_length=4096, blank=False)
 
     @property
     def full_git_dir(self):
@@ -74,11 +71,15 @@ class Article(models.Model):
         return self.versions()[0]
 
     def minutes_since_update(self):
-        delta = datetime.now() - max(self.last_update, self.initial_date)
+        if not self.last_update:
+            effective_update = self.initial_date
+        else:
+            effective_update = self.last_update
+        delta = datetime.utcnow() - effective_update
         return delta.seconds // 60 + 24*60*delta.days
 
     def minutes_since_check(self):
-        delta = datetime.now() - self.last_check
+        delta = datetime.utcnow() - self.last_check
         return delta.seconds // 60 + 24*60*delta.days
 
 

@@ -152,7 +152,7 @@ def mark_boring():
             texts = [(v, v.text()) for v in versions if v.text()]
 
         for (old, oldtxt), (new, newtxt) in zip(texts, texts[1:]):
-            if scrape.is_boring(oldtxt, newtxt):
+            if scrape.is_difference_boring(oldtxt, newtxt):
                 print 'Boring: %s %s %s' % (article.url, old.v, new.v)
                 new.boring = True
                 new.save()

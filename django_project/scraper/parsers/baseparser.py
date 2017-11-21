@@ -1,4 +1,5 @@
 import cookielib
+from datetime import datetime
 import logging
 import re
 import socket
@@ -8,6 +9,8 @@ import time
 import urllib2
 
 from BeautifulSoup import BeautifulSoup
+
+from util import url_util
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +120,8 @@ class BaseParser(object):
                 self.real_article = False
                 return
             raise
-        logger.debug('got html')
         self._parse(self.html)
+        self.parse_time = datetime.utcnow()
 
     def _printableurl(self):
         return self.url + self.SUFFIX
@@ -141,12 +144,12 @@ class BaseParser(object):
             html = grab_url(feeder_url)
             soup = cls.feeder_bs(html)
 
-            # "or ''" to make None into str
-            urls = [a.get('href') or '' for a in soup.findAll('a')]
+            urls = [a_tag.get('href', '') for a_tag in soup.findAll('a')]
 
-            # If no http://, prepend domain name
-            domain = '/'.join(feeder_url.split('/')[:3])
-            urls = [url if '://' in url else concat(domain, url) for url in urls]
+            # If there's no scheme, assume it needs the whole authority
+            # prepended
+            feeder_authority = url_util.get_url_authority(feeder_url)
+            urls = [url if '://' in url else concat(feeder_authority, url) for url in urls]
 
             all_urls = all_urls + [url for url in urls if
                                    re.search(cls.feeder_pat, url)]

@@ -1,6 +1,7 @@
 from baseparser import BaseParser
 from BeautifulSoup import BeautifulSoup
 
+
 class NYTParser(BaseParser):
     SUFFIX = '?pagewanted=all'
     domains = ['www.nytimes.com']

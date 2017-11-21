@@ -34,6 +34,7 @@ ALLOWED_HOSTS = [
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
 TIME_ZONE = 'America/New_York'
+# USE_TZ = True
 
 DATETIME_FORMAT = 'F j, Y, g:i a'
 
