@@ -1,6 +1,6 @@
 AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
-  DateModified: '1511199294443'
+  DateModified: '1511240639587'
 EnvironmentTier:
   Name: WebServer
   Type: Standard
