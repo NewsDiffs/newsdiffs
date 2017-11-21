@@ -48,7 +48,8 @@ class Command(BaseCommand):
     ''').strip()
 
     def handle(self, *args, **options):
-        logger.info('Starting scraping')
+        articles_dir_root = models.ARTICLES_DIR_ROOT
+        logger.info('Starting scraping into %s', articles_dir_root)
 
         logger.debug('Beginning to clean all Git repos')
         for repo in all_git_repos():
@@ -59,7 +60,7 @@ class Command(BaseCommand):
         todays_repo = get_and_make_git_repo()
         logger.debug("Today's Git repo: %s", todays_repo)
 
-        git_dir = os.path.join(models.ARTICLES_DIR_ROOT, todays_repo)
+        git_dir = os.path.join(articles_dir_root, todays_repo)
         configure_git(git_dir)
 
         logger.debug('Beginning updating articles')
