@@ -66,6 +66,7 @@ TEMPLATE_LOADERS = (
 )
 
 MIDDLEWARE_CLASSES = (
+    'newsdiffs.middleware.LogExceptionMiddleware',
     'django.middleware.common.CommonMiddleware',
 )
 
