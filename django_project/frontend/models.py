@@ -1,14 +1,15 @@
+from datetime import datetime
+import logging
 import subprocess
 import os
-from datetime import datetime
 
-import json
 from django.db import models
+import json
 
 from util import path_util
 
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-ROOT_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
+logger = logging.getLogger(__name__)
+
 ARTICLES_DIR_ROOT = os.environ['ARTICLES_DIR_ROOT']
 if not os.path.isabs(ARTICLES_DIR_ROOT):
     ARTICLES_DIR_ROOT = \
@@ -99,7 +100,9 @@ class Version(models.Model):
         try:
             return subprocess.check_output([GIT_PROGRAM, 'show', revision],
                                            cwd=self.article.full_git_dir)
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as ex:
+            logger.error('Failed to get version text')
+            logger.exception(ex)
             return None
 
     def get_diff_info(self):

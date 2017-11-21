@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 import re
 
 from django.shortcuts import render_to_response, get_object_or_404, redirect
@@ -137,7 +138,7 @@ def is_valid_domain(domain):
     return any(domain.endswith(source) for source in SOURCES)
 
 
-@cache_page(60 * 30)  #30 minute cache
+@cache_page(os.environ.get('CACHE_DURATION_MINUTES', 5))
 def browse(request, source=''):
     if source not in SOURCES + ['']:
         raise Http404
@@ -154,7 +155,7 @@ def browse(request, source=''):
 
     first_update = get_first_update(source)
     num_pages = (datetime.datetime.now() - first_update).days + 1
-    page_list = range(1, 1+num_pages)
+    page_list = range(1, 1 + num_pages)
     page_list = []
 
     articles = get_articles(source=source, distance=page-1)
@@ -167,7 +168,7 @@ def browse(request, source=''):
             })
 
 
-@cache_page(60 * 30)  #30 minute cache
+@cache_page(os.environ.get('CACHE_DURATION_MINUTES', 5))
 def feed(request, source=''):
     if source not in SOURCES + ['']:
         raise Http404
@@ -229,10 +230,11 @@ def diffview(request, vid1, vid2, urlarg):
     except Version.DoesNotExist:
         raise Http404
 
-    article = v1.article
-
     if v1.article != v2.article:
-        raise Http404
+        raise Exception('Diff versions %s and %s have different articles' %
+                        (vid1, vid2))
+
+    article = v1.article
 
     title = article.latest_version().title
 
@@ -254,7 +256,6 @@ def diffview(request, vid1, vid2, urlarg):
         adjacent_versions.append([versions.get(index+offset)
                                   for offset in (-1, 1)])
 
-
     if any(x is None for x in texts):
         return Http400()
 
@@ -269,14 +270,19 @@ def diffview(request, vid1, vid2, urlarg):
             links.append('')
 
     return render_to_response('diffview.html', {
-            'title': title,
-            'date1':dates[0], 'date2':dates[1],
-            'text1':texts[0], 'text2':texts[1],
-            'prev':links[0], 'next':links[1],
-            'article_shorturl': article.filename(),
-            'article_url': article.url, 'v1': v1, 'v2': v2,
-            'display_search_banner': came_from_search_engine(request),
-            })
+        'title': title,
+        'date1': dates[0],
+        'date2': dates[1],
+        'text1': texts[0],
+        'text2': texts[1],
+        'prev': links[0],
+        'next': links[1],
+        'article_shorturl': article.filename(),
+        'article_url': article.url,
+        'v1': v1,
+        'v2': v2,
+        'display_search_banner': came_from_search_engine(request),
+    })
 
 
 def get_rowinfo(article, version_lst=None):
