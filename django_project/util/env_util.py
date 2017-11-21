@@ -10,7 +10,8 @@ from util import path_util
 logger = logging.getLogger(__name__)
 s3 = boto3.resource('s3')
 
-sh_setting_re = re.compile(r'export\s+([a-zA-Z0-9_]+)=(.*)')
+sh_setting_re = \
+    re.compile(r'export\s+(?P<name>[a-zA-Z0-9_]+)=(?P<quote>[\'"]?)(?P<val>.*)(?P=quote)')
 
 
 def configure_env():
@@ -41,12 +42,14 @@ def load_s3_env_vars():
     # Don't log the values!  They are stored in S3 because they are
     # sensitive
     logger.debug('Loading %d env. vars from S3', len(s3_env_vars))
-    for (name, val) in s3_env_vars:
+    for name, val in s3_env_vars.iteritems():
         os.environ[name] = val
 
 
 def read_sh_env_vars(s3_config):
-    return re.findall(sh_setting_re, s3_config)
+    matches = re.finditer(sh_setting_re, s3_config)
+    # import pdb; pdb.set_trace()
+    return {m.group('name'): m.group('val') for m in matches}
 
 
 def read_s3_contents(bucket_name, key):

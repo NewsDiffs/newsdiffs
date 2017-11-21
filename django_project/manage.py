@@ -11,10 +11,10 @@ if __name__ == "__main__":
     # util may depend upon logging, so set it up first
     logging.config.dictConfig(logging_settings.LOGGING)
 
-    from util import env_util
-    env_util.configure_env()
-
     logger = logging.getLogger(__name__)
     logger.info('Django manage.py running command: %s', ' '.join(sys.argv))
+
+    from util import env_util
+    env_util.configure_env()
 
     execute_from_command_line(sys.argv)
