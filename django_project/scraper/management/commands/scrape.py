@@ -376,7 +376,8 @@ def update_articles(todays_git_dir):
         if not models.Article.objects.filter(url=url).count():
             new_article_count += 1
             logger.debug('Adding article %s', url)
-            models.Article(url=url, git_dir=todays_git_dir).save()
+            article = models.Article(url=url, git_dir=todays_git_dir)
+            article.save()
     logger.info('Added %d new URLs', new_article_count)
     logger.info('Skipped %d URLs that were too long', skipped_url_count)
 

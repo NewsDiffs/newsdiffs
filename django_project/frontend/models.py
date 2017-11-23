@@ -40,7 +40,7 @@ class Article(models.Model):
     # MySQL enforces a max-length of 255 for unique=True
     url = models.CharField(max_length=255, blank=False, unique=True,
                            db_index=True)
-    initial_date = models.DateTimeField(auto_now_add=True)
+    initial_date = models.DateTimeField(default=datetime.utcnow)
     last_update = models.DateTimeField(null=True)
     last_check = models.DateTimeField(null=True)
     git_dir = models.CharField(max_length=4096, blank=False)
