@@ -33,7 +33,7 @@
     {% for article, last_version, versions in articles %}
       <tr>
         <td rowspan="{{versions|length}}" valign="top">
-          <a href="{% url 'article_history' article.filename %}">{{last_version.title}}</a>
+          <a href="{% url 'article_history' article.url %}">{{last_version.title}}</a>
           (<a href="{{article.url}}">{{article.publication}}</a>)
           <br>
           {{last_version.byline}}

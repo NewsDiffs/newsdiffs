@@ -8,6 +8,11 @@
 
   <h1>Article Change Log</h1>
   <h3><a href="{{url}}">{{url}}</a></h3>
-  <p>Alas! We don't seem to know anything about this article. Sorry! :(</p>
-
+  <p>
+    {% if message %}
+      {{message}}
+    {%  else %}
+      Alas! We don't seem to know anything about this article. Sorry! 🙁
+    {% endif %}
+  </p>
 {% endblock %}

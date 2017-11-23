@@ -65,27 +65,19 @@
   </ul>
   <p>
     {% if prev %}
-      <a href="{{prev}}"><= Previous revision</a>
+      <a href="{{prev}}">⇐ Previous revision</a>
     {% else %}
       No previous revision
     {% endif %} |
-    <a href="{% url 'article_history' article_shorturl %}">All changes</a>
+    <a href="{% url 'article_history' article_url %}">All changes</a>
     |
     {% if next %}
-      <a href="{{next}}">Later revision =></a>
+      <a href="{{next}}">Later revision ⇒</a>
     {% else %}
       No later revision
     {% endif %}
   </p>
 
-  <!--
-Are these changes interesting?   <form action="{% url 'upvote' %}" method=POST>
-      <input type=hidden name=article_url value={{article_url}}>
-      <input type=hidden name=diff_v1 value={{v1}}>
-      <input type=hidden name=diff_v2 value={{v2}}>
-      <input type=submit name=submit value="Yes">
-    </form>
--->
   <hr>
   <div>
     <div id="compare">
