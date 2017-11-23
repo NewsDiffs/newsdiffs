@@ -70,11 +70,11 @@ def get_last_update(source):
 
 def get_articles(source=None, distance=0):
 
-    rx = re.compile(r'^https?://(?:[^/]*\.)%s/' % source if source else '')
+    source_regex = re.compile(r'^https?://(?:[^/]*\.)%s/' % source) if source else None
 
-    pagelength = datetime.timedelta(days=1)
-    end_date = datetime.datetime.utcnow() - distance * pagelength
-    start_date = end_date - pagelength
+    page_length = datetime.timedelta(days=1)
+    end_date = datetime.datetime.utcnow() - distance * page_length
+    start_date = end_date - page_length
 
     version_query = '''
     SELECT
@@ -124,7 +124,7 @@ def get_articles(source=None, distance=0):
     articles = []
     for article, versions in article_dict.items():
         url = article.url
-        if not rx.match(url):
+        if source and not source_regex.match(url):
             logger.info('URL did not pass filter: %s', url)
             continue
         if 'blogs.nytimes.com' in url:  # XXX temporary
