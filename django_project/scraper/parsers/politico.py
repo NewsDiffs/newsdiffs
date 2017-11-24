@@ -3,10 +3,11 @@ from baseparser import BaseParser, grab_url, logger
 # Different versions of BeautifulSoup have different properties.
 # Some work with one site, some with another.
 # This is BeautifulSoup 3.2.
-from BeautifulSoup import BeautifulSoup
+import BeautifulSoup as bs3
 # This is BeautifulSoup 4
 import bs4
 import re
+
 
 class PoliticoParser(BaseParser):
     domains = ['www.politico.com']
@@ -14,17 +15,18 @@ class PoliticoParser(BaseParser):
     feeder_pat = '^http://www.politico.com/(news/stories|story)/'
     feeder_pages = ['http://www.politico.com/']
 
-    feeder_bs = bs4.BeautifulSoup
+    feeder_soup_version = 'bs4'
 
     def _parse(self, html):
-        soup = bs4.BeautifulSoup(html)
+        soup = bs4.BeautifulSoup(html, 'html5lib')
         print_link = soup.findAll('a', href=re.compile('http://dyn.politico.com/printstory.cfm.*'))[0].get('href')
         html2 = grab_url(print_link)
         logger.debug('got html 2')
         # Now we have to switch back to bs3.  Hilarious.
         # and the labeled encoding is wrong, so force utf-8.
-        soup = BeautifulSoup(html2, convertEntities=BeautifulSoup.HTML_ENTITIES,
-                             fromEncoding='utf-8')
+        soup = bs3.BeautifulSoup(html2,
+                                 convertEntities=bs3.BeautifulSoup.HTML_ENTITIES,
+                                 fromEncoding='utf-8')
 
         self.meta = soup.findAll('meta')
         p_tags = soup.findAll('p')[1:]

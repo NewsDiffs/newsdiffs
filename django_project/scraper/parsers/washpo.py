@@ -1,10 +1,11 @@
 from baseparser import BaseParser
-from bs4 import BeautifulSoup
+import bs4
 import re
 import datetime
 import dateutil.parser
 
 DATE_FORMAT = '%A, %B %e %Y, %l:%M %p'
+
 
 class WashPoParser(BaseParser):
     SUFFIX = '?print=true'
@@ -34,7 +35,7 @@ class WashPoParser(BaseParser):
         else:
             datestr = elt['content']
             if datestr[-2:] == u'00' and datestr[-3] != u':':
-                datestr = datestr[:-2] + u':00' # fix timezone formatting
+                datestr = datestr[:-2] + u':00'  # fix timezone formatting
             date = dateutil.parser.parse(datestr)
             self.date = date.strftime(DATE_FORMAT)
         div = soup.find('article', itemprop='articleBody')
@@ -44,7 +45,7 @@ class WashPoParser(BaseParser):
         return True
 
     def _parse(self, html):
-        soup = BeautifulSoup(html)
+        soup = bs4.BeautifulSoup(html, 'html5lib')
 
         self.meta = soup.findAll('meta')
         elt = soup.find('h1', property="dc.title")

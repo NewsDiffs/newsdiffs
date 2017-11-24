@@ -6,7 +6,7 @@ class TagesschauParser(BaseParser):
     domains = ['www.tagesschau.de']
 
     def _parse(self, html):
-        soup = bs4.BeautifulSoup(html)
+        soup = bs4.BeautifulSoup(html, 'html5lib')
 
         # extract the important text of the article into self.document #
         # select the one article

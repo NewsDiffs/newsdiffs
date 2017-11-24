@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import urllib2
-from BeautifulSoup import BeautifulSoup
+import BeautifulSoup as bs3
 from datetime import datetime, timedelta
 import dateutil.parser
 import subprocess
@@ -27,7 +27,7 @@ def send_alert_email(subject, body):
 
 def get_update_time():
     html = urllib2.urlopen(WEBSITE)
-    soup = BeautifulSoup(html)
+    soup = bs3.BeautifulSoup(html)
     datestr = soup.findAll('td')[1].getText()
     datestr = datestr.replace('midnight', '12:00am').replace('noon', '12:00pm')
     try:

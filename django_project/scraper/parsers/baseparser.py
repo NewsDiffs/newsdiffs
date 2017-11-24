@@ -8,7 +8,8 @@ import sys
 import time
 import urllib2
 
-from BeautifulSoup import BeautifulSoup
+import BeautifulSoup as bs3
+import bs4
 
 from util import url_util
 
@@ -52,7 +53,7 @@ def grab_url(url, max_depth=5, opener=None):
 # Begin hot patch for https://bugs.launchpad.net/bugs/788986
 # Ick.
 def bs_fixed_getText(self, separator=u""):
-    bsmod = sys.modules[BeautifulSoup.__module__]
+    bsmod = sys.modules[bs3.BeautifulSoup.__module__]
     if not len(self.contents):
         return u""
     stopNode = self._lastRecursiveChild().next
@@ -63,7 +64,7 @@ def bs_fixed_getText(self, separator=u""):
             strings.append(current)
         current = current.next
     return separator.join(strings)
-sys.modules[BeautifulSoup.__module__].Tag.getText = bs_fixed_getText
+sys.modules[bs3.BeautifulSoup.__module__].Tag.getText = bs_fixed_getText
 # End fix
 
 def strip_whitespace(text):
@@ -106,10 +107,10 @@ class BaseParser(object):
     meta = []  # Currently unused.
 
     # Used when finding articles to parse
-    feeder_pat   = None # Look for links matching this regular expression
+    feeder_pat = None  # Look for links matching this regular expression
     feeder_pages = []   # on these pages
 
-    feeder_bs = BeautifulSoup #use this version of beautifulsoup for feed
+    feeder_soup_version = 'bs3'  # use this version of BeautifulSoup for feed
 
     def __init__(self, url):
         self.url = url
@@ -142,7 +143,13 @@ class BaseParser(object):
         all_urls = []
         for feeder_url in cls.feeder_pages:
             html = grab_url(feeder_url)
-            soup = cls.feeder_bs(html)
+            if cls.feeder_soup_version == 'bs3':
+                soup = bs3.BeautifulSoup(html)
+            elif cls.feeder_soup_version == 'bs4':
+                soup = bs4.BeautifulSoup(html, 'html5lib')
+            else:
+                raise Exception('Invalid feeder_soup_version.  Must be from '
+                                '{bs3,bs4}: %s', cls.feeder_soup_version)
 
             urls = [a_tag.get('href', '') for a_tag in soup.findAll('a')]
 

@@ -1,5 +1,5 @@
 from baseparser import BaseParser
-from BeautifulSoup import BeautifulSoup
+import BeautifulSoup as bs3
 
 
 class NYTParser(BaseParser):
@@ -43,7 +43,7 @@ class NYTParser(BaseParser):
                     'http://topics.nytimes.com/top/opinion/thepubliceditor/']
 
     def _parse(self, html):
-        soup = BeautifulSoup(html, convertEntities=BeautifulSoup.HTML_ENTITIES)
+        soup = bs3.BeautifulSoup(html, convertEntities=bs3.BeautifulSoup.HTML_ENTITIES)
         self.meta = soup.findAll('meta')
         try:
             seo_title = soup.find('meta', attrs={'name':'hdl'}).get('content')
