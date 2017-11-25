@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import signal
 import subprocess
@@ -72,8 +72,8 @@ with PidFile('scraper.pid', run_dir) as pid_file:
         current_seconds = time.time()
         if current_seconds < next_repeat_seconds:
             wait_seconds = next_repeat_seconds - current_seconds
-            logger.info('Waiting for %s seconds before next run',
-                        datetime.timedelta(seconds=wait_seconds))
+            logger.info('Waiting %s before next run',
+                        timedelta(seconds=wait_seconds))
             time.sleep(wait_seconds)
         next_repeat_seconds = current_seconds + min_repeat_seconds
 
