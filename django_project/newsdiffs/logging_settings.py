@@ -1,28 +1,20 @@
-from datetime import datetime
-import logging
 import os
-
-from dateutil.tz import tzlocal
+import sys
 
 from util.Bag import Bag
 
 
-class IsoDateTimeFormatter(logging.Formatter):
-    def formatTime(self, record, datefmt=None):
-        ct = datetime.fromtimestamp(record.created, tzlocal())
-        return ct.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
-
-
 # https://django-doc-test1.readthedocs.io/en/stable-1.5.x/topics/logging.html
 formatters = Bag(verbose='verbose')
-handlers = Bag(console='console', file='file')
+handlers = Bag(console_stdout='console_stdout', console_stderr='console_stderr',
+               file='file')
 boto_log_level = os.environ.get('BOTO_LOG_LEVEL', 'WARN')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
     'formatters': {
         formatters.verbose: {
-            '()': 'newsdiffs.logging_settings.IsoDateTimeFormatter',
+            '()': 'util.logging_util.IsoDateTimeFormatter',
             'format': '%(asctime)s [%(name)s] %(levelname)s: %(message)s',
         },
     },
@@ -30,15 +22,25 @@ LOGGING = {
         'null': {
             'class': 'django.utils.log.NullHandler',
         },
-        handlers.console: {
+        handlers.console_stdout: {
             'level': os.environ.get('CONSOLE_LOG_LEVEL', 'ERROR'),
-            'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'class': 'logging.StreamHandler',
+            'stream': sys.stdout,
+        },
+        handlers.console_stderr: {
+            'level': 'ERROR',
+            'formatter': 'verbose',
+            'class': 'logging.StreamHandler',
+            'stream': sys.stderr,
         },
     },
     'root': {
         'level': 'DEBUG',
-        'handlers': [handlers.console],
+        'handlers': [
+            handlers.console_stdout,
+            handlers.console_stderr,
+        ],
     },
     'loggers': {
         'django.request': {

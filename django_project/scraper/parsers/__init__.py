@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # To start tracking a new site:
 #  - create a parser class in another file, based off (say) bbc.BBCParser
 #  - add it to parsers (below)

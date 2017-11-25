@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from datetime import datetime, timedelta
 import errno
 import httplib
@@ -21,6 +19,7 @@ from scraper import parsers
 from scraper import diff_match_patch
 from scraper.parsers.baseparser import canonicalize
 from util import url_util
+from util.logging_util import DATETIME_FORMAT_ISO_8601_UTC
 
 GIT_PROGRAM = 'git'
 
@@ -444,14 +443,14 @@ def update_versions(todays_repo, do_all=False):
         logger.debug('Checking article %d (%d/%d): %s', article.id, i + 1,
                      len(sorted_articles), article.url)
         if article.last_check:
-            last_check = article.last_check.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            last_check = article.last_check.strftime(DATETIME_FORMAT_ISO_8601_UTC)
             last_check_ago = datetime.utcnow() - article.last_check
             logger.debug('Article %d last checked %s (%s ago)', article.id,
                          last_check, last_check_ago)
         else:
             logger.debug('Article %d last checked never', article.id)
         if article.last_update:
-            last_update = article.last_update.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            last_update = article.last_update.strftime(DATETIME_FORMAT_ISO_8601_UTC)
             last_update_ago = datetime.utcnow() - article.last_update
             logger.debug('Article %d last updated %s (%s ago)', article.id,
                          last_update, last_update_ago)

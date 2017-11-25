@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from datetime import datetime
 from optparse import make_option
 import os
@@ -47,7 +45,8 @@ class Command(BaseCommand):
 
 
 def migrate_versions():
-    XXX_this_hasnt_been_updated_for_having_multiple_git_dirs
+    raise Exception("this hasn't been updated for having multiple git dirs")
+
     git_output = subprocess.check_output([GIT_PROGRAM, 'log'], cwd=models.ARTICLES_DIR_ROOT)
     commits = git_output.split('\n\ncommit ')
     commits[0] = commits[0][len('commit '):]
@@ -115,7 +114,7 @@ def get_hash(version, filename):
 def remove_duplicates():
     num_articles = models.Article.objects.count()
     for i, article in enumerate(models.Article.objects.all()):
-        if i%100 == 0:
+        if i % 100 == 0:
             print '%s/%s' % (i+1, num_articles)
         filename = article.filename()
         mapping = {}
@@ -135,7 +134,7 @@ def mark_boring():
     articles = models.Article.objects.all()
     num_articles = articles.count()
     for i, article in list(enumerate(articles)):
-        if i%100 == 0:
+        if i % 100 == 0:
             print '%s/%s' % (i+1, num_articles)
         versions = list(article.versions())
         if len(versions) < 2:
@@ -144,7 +143,7 @@ def mark_boring():
         reload = False
         for v, text in texts:
             if text is None:
-                #Inconsistency in database
+                # Inconsistency in database
                 print 'ERROR: deleting', article.url, v.v
                 v.delete()
                 reload = True
