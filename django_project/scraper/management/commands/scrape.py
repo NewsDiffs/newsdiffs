@@ -298,7 +298,7 @@ def add_to_git_repo(data, filename, article):
         commit_message = 'Adding file %s' % filename
     else:
         commit_message = 'Change to %s' % filename
-    command_args = ['commit', filename, '-m', commit_message]
+    command_args = ['commit', '-m', commit_message]
     logger.debug('Committing article %d version data to Git with command: %s',
                  article.id, ' '.join(command_args))
     run_git_command(command_args, article.full_git_dir)

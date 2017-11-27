@@ -21,7 +21,7 @@ eastern_timezone = pytz.timezone("US/Eastern")
 # operations don't conflict
 MIGRATED_VERSIONS_GIT_SUBDIR = 'mit_migration'
 # This is where to find the Git dirs of the articles versions to migrate
-MIGRATION_VERSIONS_DIR = '/home/ec2-user/mit_migration'
+MIGRATION_VERSIONS_DIR = '/newsdiffs-efs/mit_migration/dump'
 
 
 class Command(BaseCommand):
@@ -41,7 +41,7 @@ class Command(BaseCommand):
         try:
             migration_connection = mysql.connector.connect(
                 host=os.environ['DB_HOST'],
-                database='newsdiffs_migrate',
+                database='mit_migration',
                 user=os.environ['DB_USER'],
                 password=os.environ['DB_PASSWORD'],
             )
@@ -92,8 +92,7 @@ class Command(BaseCommand):
                     connection.commit()
 
                     current_article = make_article(row)
-                    current_versions[:] = []
-                    current_versions.append(make_version(row))
+                    current_versions[:] = [make_version(row)]
         finally:
             if migration_cursor:
                 cursor.close()

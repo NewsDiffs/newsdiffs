@@ -84,6 +84,7 @@ INSTALLED_APPS = (
     'south',
     'frontend',
     'scraper',
+    'mit_migration',
 )
 
 STATIC_URL = '/static/'

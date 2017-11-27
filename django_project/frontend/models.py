@@ -24,6 +24,17 @@ def strip_prefix(string, prefix):
     return string
 
 
+def article_url_to_filename(url):
+    filename = url.rstrip('/')
+    if filename.startswith('http://'):
+        return filename[len('http://'):]
+    elif filename.startswith('https://'):
+        # Terrible hack for backwards compatibility from when https was stored incorrectly,
+        # perpetuating the problem
+        return 'https:/' + filename[len('https://'):]
+    raise ValueError("Unknown file type '%s'" % url)
+
+
 PublicationDict = {
     'www.nytimes.com': 'NYT',
     'edition.cnn.com': 'CNN',
@@ -44,20 +55,14 @@ class Article(models.Model):
     last_update = models.DateTimeField(null=True)
     last_check = models.DateTimeField(null=True)
     git_dir = models.CharField(max_length=4096, blank=False)
+    is_migrated = models.BooleanField(default=False)
 
     @property
     def full_git_dir(self):
         return os.path.join(ARTICLES_DIR_ROOT, self.git_dir)
 
     def filename(self):
-        ans = self.url.rstrip('/')
-        if ans.startswith('http://'):
-            return ans[len('http://'):]
-        elif ans.startswith('https://'):
-            # Terrible hack for backwards compatibility from when https was stored incorrectly,
-            # perpetuating the problem
-            return 'https:/' + ans[len('https://'):]
-        raise ValueError("Unknown file type '%s'" % self.url)
+        return article_url_to_filename(self.url)
 
     def publication(self):
         return PublicationDict.get(self.url.split('/')[2])
@@ -96,6 +101,7 @@ class Version(models.Model):
     date = models.DateTimeField(blank=False)
     boring = models.BooleanField(blank=False, default=False)
     diff_json = models.CharField(max_length=255, null=True)
+    is_migrated = models.BooleanField(default=False)
 
     def text(self):
         revision = self.v + ':' + self.article.filename()
