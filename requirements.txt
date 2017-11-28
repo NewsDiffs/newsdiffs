@@ -5,5 +5,6 @@ Django==1.5
 html5lib==0.999999999
 MySQL-python==1.2.5
 pid==2.1.1
+pytz==2017.3
 South==1.0.2
 python-dateutil==2.6.1

@@ -8,4 +8,4 @@ grant all on newsdiffs_dev.* to newsdiffs_dev;
 
 
 create database mit_migration;
-grant select on mit_migrate.* to newsdiffs_dev;
+grant select on mit_migration.* to newsdiffs_dev;
