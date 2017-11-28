@@ -17,10 +17,13 @@ from newsdiffs import logging_settings
 # util may depend upon logging, so set it up first
 logging.config.dictConfig(logging_settings.LOGGING)
 
-from util import env_util
-env_util.configure_env()
-
 logger = logging.getLogger(__name__)
 logger.debug('Creating Django WSGI application')
+
+from util import env_util
+try:
+    env_util.configure_env()
+except Exception as ex:
+    logger.exception(ex)
 
 application = get_wsgi_application()

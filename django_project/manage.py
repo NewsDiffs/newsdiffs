@@ -15,6 +15,9 @@ if __name__ == "__main__":
     logger.info('Django manage.py running command: %s', ' '.join(sys.argv))
 
     from util import env_util
-    env_util.configure_env()
+    try:
+        env_util.configure_env()
+    except Exception as ex:
+        logger.exception(ex)
 
     execute_from_command_line(sys.argv)
