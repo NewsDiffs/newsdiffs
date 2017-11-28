@@ -48,21 +48,9 @@ def load_s3_env_vars():
 
 def read_sh_env_vars(s3_config):
     matches = re.finditer(sh_setting_re, s3_config)
-    # import pdb; pdb.set_trace()
     return {m.group('name'): m.group('val') for m in matches}
 
 
 def read_s3_contents(bucket_name, key):
-    local_path = os.path.join('/opt/python/current/app', os.path.basename(key))
-    try:
-        s3.Bucket(bucket_name).download_file(key, local_path)
-        with open(local_path, 'r') as s3_config_file:
-            return s3_config_file.read()
-    finally:
-        # Don't leave sensitive file contents on disk
-        try:
-            os.remove(local_path)
-        except OSError as ex:
-            # Or use `ex.errno != 2` ?
-            if ex.strerror != 'No such file or directory':
-                raise
+    response = s3.Object(bucket_name, key).get()
+    return response['Body'].read()
