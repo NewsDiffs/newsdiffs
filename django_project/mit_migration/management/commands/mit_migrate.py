@@ -1,4 +1,3 @@
-from contextlib import closing
 import errno
 import logging
 import subprocess
@@ -35,34 +34,42 @@ class Command(BaseCommand):
     help = textwrap.dedent('''Migrate data from MIT data dump to AWS''').strip()
 
     def handle(self, *args, **options):
-        with closing(make_from_connection()) as from_connection, \
-                closing(make_to_connection()) as to_connection, \
-                from_connection as from_cursor, \
-                to_connection as to_cursor:
-            migrate(from_cursor, to_cursor)
+        from_connection = None
+        from_cursor = None
+        to_connection = None
+        to_cursor = None
+        try:
+            to_connection = MySQLdb.connect(
+                host=os.environ['DB_HOST'],
+                db=os.environ['DB_NAME'],
+                user=os.environ['DB_USER'],
+                passwd=os.environ['DB_PASSWORD'],
+                cursorclass=MySQLdb.cursors.DictCursor,
+            )
+            to_cursor = to_connection.cursor()
+
+            from_connection = MySQLdb.connect(
+                host=os.environ['DB_HOST'],
+                db='mit_migration',
+                user=os.environ['DB_USER'],
+                passwd=os.environ['DB_PASSWORD'],
+                cursorclass=MySQLdb.cursors.SSDictCursor,
+            )
+            from_cursor = from_connection.cursor()
+
+            migrate(from_cursor, to_connection, to_cursor)
+        finally:
+            if from_cursor:
+                to_cursor.close()
+            if hasattr(from_connection, 'close'):
+                from_connection.close()
+            if to_cursor:
+                to_cursor.close()
+            if hasattr(to_connection, 'close'):
+                to_connection.close()
 
 
-def make_from_connection():
-    return MySQLdb.connect(
-        host=os.environ['DB_HOST'],
-        db='mit_migration',
-        user=os.environ['DB_USER'],
-        passwd=os.environ['DB_PASSWORD'],
-        cursorclass=MySQLdb.cursors.SSDictCursor,
-    )
-
-
-def make_to_connection():
-    return MySQLdb.connect(
-        host=os.environ['DB_HOST'],
-        db=os.environ['DB_NAME'],
-        user=os.environ['DB_USER'],
-        passwd=os.environ['DB_PASSWORD'],
-        cursorclass=MySQLdb.cursors.DictCursor,
-    )
-
-
-def migrate(from_cursor, to_cursor):
+def migrate(from_cursor, to_connection, to_cursor):
     cutoff = get_migrate_cutoff(to_cursor)
     logger.info('Using cutoff: %s', cutoff)
 
@@ -76,12 +83,10 @@ def migrate(from_cursor, to_cursor):
             logger.debug('Started reading article %s', current_article.id)
 
             current_versions.append(make_version(row))
-            logger.debug('Read article %s version %s', current_article.id,
-                         current_versions[-1].id)
+            logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
         elif current_article.id == row['article_id']:
             current_versions.append(make_version(row))
-            logger.debug('Read article %s version %s', current_article.id,
-                         current_versions[-1].id)
+            logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
         else:
             logger.debug('Processing article %s', current_article.id)
             process_article_versions(to_cursor, current_article,
@@ -89,22 +94,21 @@ def migrate(from_cursor, to_cursor):
             logger.debug('Processed article %s', current_article.id)
 
             logger.debug('Committing article %s', current_article.id)
-            to_cursor.connection.commit()
+            to_connection.commit()
             logger.debug('Committed article %s', current_article.id)
 
             current_article = make_article(row)
             logger.debug('Started reading article %s', current_article.id)
 
             current_versions[:] = [make_version(row)]
-            logger.debug('Read article %s version %s', current_article.id,
-                         current_versions[-1].id)
+            logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
 
     logger.debug('Processing article %s', current_article.id)
     process_article_versions(to_cursor, current_article, current_versions)
     logger.debug('Processed article %s', current_article.id)
 
     logger.debug('Committing article %s', current_article.id)
-    to_cursor.connection.commit()
+    to_connection.commit()
     logger.debug('Committed article %s', current_article.id)
 
 
@@ -175,16 +179,12 @@ def process_article_versions(to_cursor, from_article_data, from_version_datas):
     # oldest one in the new DB.
     # Also need to copy over the file and commit it.
     try:
-        extant_to_article = models.Article.objects.get(
-            url=from_article_data.url)
+        extant_to_article = models.Article.objects.get(url=from_article_data.url)
     except models.Article.DoesNotExist:
         to_article_data = migrate_article(to_cursor, from_article_data)
-        migrate_versions(to_cursor, from_article_data, from_version_datas,
-                         to_article_data)
+        migrate_versions(to_cursor, from_article_data, from_version_datas, to_article_data)
     else:
-        migrate_non_overlapping_article_versions(to_cursor, from_article_data,
-                                                 extant_to_article,
-                                                 from_version_datas)
+        migrate_non_overlapping_article_versions(to_cursor, from_article_data, extant_to_article, from_version_datas)
 
 
 def migrate_article(to_cursor, from_article_data):
@@ -197,8 +197,7 @@ def migrate_article(to_cursor, from_article_data):
         initial_date=fix_date(from_article_data.initial_date),
         last_update=fix_date(from_article_data.last_update),
         last_check=fix_date(from_article_data.last_check),
-        git_dir=os.path.join(MIGRATED_VERSIONS_GIT_SUBDIR,
-                             from_article_data.git_dir),
+        git_dir=os.path.join(MIGRATED_VERSIONS_GIT_SUBDIR, from_article_data.git_dir),
     )
     execute_query(to_cursor, article_query, article_data)
 
@@ -208,16 +207,14 @@ def migrate_article(to_cursor, from_article_data):
     return Bag(id=article_id, url=from_article_data.url)
 
 
-def migrate_versions(to_cursor, from_article_data, from_version_datas,
-                     to_article_data):
-    git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'],
-                           MIGRATED_VERSIONS_GIT_SUBDIR,
-                           from_article_data.git_dir)
+def migrate_versions(to_cursor, from_article_data, from_version_datas, to_article_data):
+    git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, from_article_data.git_dir)
     if not os.path.exists(git_dir):
         logger.debug('Initializing Git repo at: %s', git_dir)
         make_git_repo(git_dir)
 
     for from_version_data in from_version_datas:
+
         migrate_version_text = get_version_text(
             from_version_data,
             # Use the migrate article in case the URLs differ by scheme
@@ -225,13 +222,10 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas,
             os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.git_dir)
         )
 
-        version_path = os.path.join(git_dir, article_url_to_filename(
-            to_article_data.url))
-        logger.debug('Writing version %s file to %s', from_version_data.id,
-                     version_path)
+        version_path = os.path.join(git_dir, article_url_to_filename(to_article_data.url))
+        logger.debug('Writing version %s file to %s', from_version_data.id, version_path)
         write_version_file(migrate_version_text, version_path)
-        commit_version_file(version_path, git_dir, from_article_data.url,
-                            from_version_data.date)
+        commit_version_file(version_path, git_dir, from_article_data.url, from_version_data.date)
 
         version_query = """
             insert into version (article_id, v, title, byline, date, boring, diff_json, is_migrated)
@@ -276,9 +270,9 @@ def make_git_repo(path):
 
 def configure_git(git_dir):
     run_command(['git', 'config', 'user.email',
-                 'migration@newsdiffs.org'], cwd=git_dir)
+                             'migration@newsdiffs.org'], cwd=git_dir)
     run_command(['git', 'config', 'user.name',
-                 'NewsDiffs Migration'], cwd=git_dir)
+                             'NewsDiffs Migration'], cwd=git_dir)
 
 
 def run_command(*args, **kwargs):
@@ -305,8 +299,7 @@ def commit_version_file(version_path, git_dir, url, date):
     output = run_command(command_parts, cwd=git_dir)
     logger.info('%s: %s', ' '.join(command_parts), output)
 
-    command_parts = ['git', 'commit', '-m',
-                     'Migrating %s from %s' % (url, date)]
+    command_parts = ['git', 'commit', '-m', 'Migrating %s from %s' % (url, date)]
     try:
         output = run_command(command_parts, cwd=git_dir)
         logger.info('%s: %s', ' '.join(command_parts), output)
@@ -333,8 +326,7 @@ def migrate_non_overlapping_article_versions(
             last_non_overlapping_version_index = i - 1
             break
     if last_non_overlapping_version_index > -1:
-        last_non_overlapping_version = from_version_datas[
-            last_non_overlapping_version_index]
+        last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
         migrate_version_text = get_version_text(
             last_non_overlapping_version,
             # Use the migrate article in case the URLs differ by scheme
@@ -351,11 +343,9 @@ def migrate_non_overlapping_article_versions(
         if last_non_overlapping_version_index > -1:
             non_overlapping_versions = \
                 from_version_datas[:last_non_overlapping_version_index + 1]
-            migrate_versions(to_cursor, from_article_data,
-                             non_overlapping_versions, extant_to_article)
+            migrate_versions(to_cursor, from_article_data, non_overlapping_versions, extant_to_article)
     else:
-        migrate_versions(to_cursor, from_article_data, from_version_datas,
-                         extant_to_article)
+        migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
 
 
 def get_version_text(version, filename, git_dir):
@@ -364,8 +354,7 @@ def get_version_text(version, filename, git_dir):
 
 
 def get_oldest_extant_version(extant_article):
-    return models.Version.objects.filter(article_id=extant_article.id).order_by(
-        'date').first()
+    return models.Version.objects.filter(article_id=extant_article.id).order_by('date').first()
 
 
 def get_migrate_cutoff(to_cursor):
