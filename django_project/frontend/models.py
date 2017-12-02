@@ -56,6 +56,7 @@ class Article(models.Model):
     last_check = models.DateTimeField(null=True)
     git_dir = models.CharField(max_length=4096, blank=False)
     is_migrated = models.BooleanField(default=False)
+    migrated_article_id = models.PositiveIntegerField(null=True, default=None)
 
     @property
     def full_git_dir(self):
@@ -102,6 +103,8 @@ class Version(models.Model):
     boring = models.BooleanField(blank=False, default=False)
     diff_json = models.CharField(max_length=255, null=True)
     is_migrated = models.BooleanField(default=False)
+    migrated_commit_hash = models.CharField(max_length=255, default=None, null=True)
+    migrated_version_id = models.PositiveIntegerField(null=True, default=None)
 
     def text(self):
         revision = self.v + ':' + self.article.filename()
