@@ -6,6 +6,7 @@ import textwrap
 import os
 
 from django.core.management.base import BaseCommand
+from mem_top import mem_top
 import MySQLdb
 import MySQLdb.cursors
 from optparse import make_option
@@ -45,6 +46,10 @@ class Command(BaseCommand):
         migrate_until_done()
 
 
+class MigrationException(Exception):
+    pass
+
+
 def migrate_until_done():
     is_done = False
     attempt_number = 0
@@ -55,6 +60,9 @@ def migrate_until_done():
         try:
             is_done = connect_and_migrate()
         except Exception as ex:
+            if isinstance(ex, MigrationException):
+                logger.error('Caught MigrationException, aborting')
+                raise
             logger.warn('Caught exception while migrating until done')
             logger.exception(ex)
             elapsed_time = datetime.now() - last_exception_datetime
@@ -153,6 +161,9 @@ def migrate(from_cursor, to_connection, to_cursor):
             to_connection.commit()
             logger.debug('Committed article %s', current_article.id)
 
+            logging.debug(mem_top(width=200))
+            git_gc(current_article.git_dir)
+
             current_article = make_article(row)
             logger.debug('Started reading article %s', current_article.id)
 
@@ -166,6 +177,13 @@ def migrate(from_cursor, to_connection, to_cursor):
     logger.debug('Committing article %s', current_article.id)
     to_connection.commit()
     logger.debug('Committed article %s', current_article.id)
+
+
+def git_gc(git_dir):
+    git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, git_dir)
+    logger.debug('starting git garbage collection in %s', git_dir)
+    output = run_command(['git' 'gc'], cwd=git_dir)
+    logger.debug('done with git garbage collection: %s', output)
 
 
 def get_last_migrated_article_id(to_cursor):
@@ -272,12 +290,24 @@ def process_article_versions(to_cursor, from_article_data, from_version_datas):
     # oldest one in the new DB.
     # Also need to copy over the file and commit it.
     try:
+        logger.debug('looking for extant article')
         extant_to_article = models.Article.objects.get(url=from_article_data.url)
     except models.Article.DoesNotExist:
+        logger.debug('no extant article')
+
+        logger.debug('migrating article')
         to_article_data = migrate_article(to_cursor, from_article_data)
+        logger.debug('done migrating article')
+
+        logger.debug('migrating versions')
         migrate_versions(to_cursor, from_article_data, from_version_datas, to_article_data)
+        logger.debug('done migrating versions')
     else:
+        logger.debug('found extant article')
+
+        logger.debug('migrating non-overlapping versions')
         migrate_non_overlapping_article_versions(to_cursor, from_article_data, extant_to_article, from_version_datas)
+        logger.debug('done migrating non-overlapping versions')
 
 
 def migrate_article(to_cursor, from_article_data):
@@ -342,33 +372,87 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
         did_change = commit_version_file(version_path, git_dir, from_article_data.url, from_version_data.date)
 
         if did_change:
-            if has_version_id_been_migrated(to_cursor, from_version_data.id):
-                # Hopefully this doesn't happen if we always process the versions in the same order
-                raise Exception('version %s changed in Git but is already migrated (%s / %s) ' % (from_version_data.id, from_article_data.url, to_article_data.url))
-                # commit_hash = get_most_recent_commit_hash_that_modified_file(git_dir, filename)
-
-            commit_hash = get_commit_hash(git_dir)
-
-            version_query = """
-                insert into version (article_id, v, title, byline, date, boring, diff_json, is_migrated)
-                values (%(article_id)s, %(v)s, %(title)s, %(byline)s, %(date)s, %(boring)s, %(diff_json)s, TRUE)
-            """
-            version_data = dict(
-                article_id=to_article_data.id,
-                v=commit_hash,
-                migrated_commit_hash=from_version_data.v,
-                migrated_version_id=from_version_data.id,
-                title=from_version_data.title,
-                byline=from_version_data.byline,
-                date=eastern_to_utc(from_version_data.date, 'version', from_version_data.id, 'date'),
-                boring=from_version_data.boring,
-                diff_json=from_version_data.diff_json,
-            )
-            execute_query(to_cursor, version_query, version_data)
+            # Check if the version has already been migrated
+            migrated_commit_hash = get_migrated_commit_hash(to_cursor, from_version_data.id)
+            if migrated_commit_hash:
+                # Check that the git commit from the migrated version exists
+                if not git_commit_exists(migrated_commit_hash, git_dir, filename):
+                    raise MigrationException("version %s has been migrated, but its Git commit %s doesn't exist" % (from_version_data.id, migrated_commit_hash))
+                logger.warn("encountered file change while trying to migrate "
+                            "version %s whhas been migrated, but since its Git "
+                            "commit %s exists we are resetting the change and "
+                            "continuing" % (from_version_data.id, migrated_commit_hash))
+                run_command(['git', 'reset', '--hard'], cwd=git_dir)
+            else:
+                commit_hash = get_commit_hash(git_dir)
+                migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_data, commit_hash)
         else:
-            # Check if it has been migrated.  Hopefully it has
-            if not has_version_id_been_migrated(to_cursor, from_version_data.id):
-                raise Exception('version %s exists in Git but is not migrated (%s / %s) ' % (from_version_data.id, from_article_data.url, to_article_data.url))
+            # If the file did not change, check if the version has been migrated
+            migrated_commit_hash = get_migrated_commit_hash(to_cursor, from_version_data.id)
+            if migrated_commit_hash:
+                logger.info("encountered version %s where file didn't change and it is already migrated. continuing." % (from_version_data.id,))
+            else:
+                # If the file didn't change and the version hasn't been migrated
+                # then maybe we can emulate the change by finding the commit
+                # when the file last changed
+                previous_commit_hash = get_most_recent_commit_hash_that_modified_file(git_dir, filename)
+                version_migrating_previous_commit_hash = get_version_for_commit_hash(previous_commit_hash)
+                if version_migrating_previous_commit_hash:
+                    raise MigrationException("while trying to migrate version "
+                                             "%s, found that it's file contents "
+                                             "are already on disk AND the commit "
+                                             "that did so %s is already "
+                                             "migrated as version %s" % (
+                        from_version_data.id, previous_commit_hash,
+                        version_migrating_previous_commit_hash.id))
+                else:
+                    # Create version using the previous commit hash
+                    migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_data, previous_commit_hash)
+
+
+def git_commit_exists(commit_hash, git_dir):
+    try:
+        # https://stackoverflow.com/a/31780867/39396
+        run_command(['git', 'cat-file', '-e', commit_hash + '^{commit}'], cwd=git_dir)
+    except subprocess.CalledProcessError:
+        return False
+    else:
+        return True
+
+
+
+def get_version_for_commit_hash(to_cursor, git_commit):
+    query = """
+        select * from version where v = %(git_commit)s
+    """
+    execute_query(to_cursor, query, dict(git_commit=git_commit))
+    version_rows = to_cursor.fetchall()
+    if len(version_rows) > 1:
+        raise MigrationException('git commit %s has been migrated %s times: %s' % (git_commit, len(version_rows), version_rows))
+    if len(version_rows) < 1:
+        return None
+    row = version_rows[0]
+    return make_version(row)
+
+
+def migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_data, commit_hash):
+    version_query = """
+        insert into version (article_id, v, title, byline, date, boring, diff_json, is_migrated)
+        values (%(article_id)s, %(v)s, %(title)s, %(byline)s, %(date)s, %(boring)s, %(diff_json)s, TRUE)
+    """
+    version_data = dict(
+        article_id=to_article_data.id,
+        v=commit_hash,
+        migrated_commit_hash=from_version_data.v,
+        migrated_version_id=from_version_data.id,
+        title=from_version_data.title,
+        byline=from_version_data.byline,
+        date=eastern_to_utc(from_version_data.date, 'version', from_version_data.id, 'date'),
+        boring=from_version_data.boring,
+        diff_json=from_version_data.diff_json,
+    )
+    execute_query(to_cursor, version_query, version_data)
+
 
 
 def get_most_recent_commit_hash_that_modified_file(git_dir, filename):
@@ -376,14 +460,17 @@ def get_most_recent_commit_hash_that_modified_file(git_dir, filename):
     return run_command(command_parts, cwd=git_dir)
 
 
-def has_version_id_been_migrated(to_cursor, version_id):
+def get_migrated_commit_hash(to_cursor, version_id):
     query = """
-        select count(*) as count from version where migrated_version_id = %(version_id)s
+        select id, v from version where migrated_version_id = %(version_id)s
     """
     execute_query(to_cursor, query, dict(version_id=version_id))
-    count = to_cursor.fetchone()['count']
-    to_cursor.fetchall()
-    return count > 0
+    commit_hashes = to_cursor.fetchall()
+    if len(commit_hashes) > 1:
+        raise MigrationException('version ID has been migrated %s times: %s' % (len(commit_hashes), commit_hashes))
+    if len(commit_hashes) < 1:
+        return None
+    return commit_hashes[0]['v']
 
 
 def get_commit_hash(git_dir):
