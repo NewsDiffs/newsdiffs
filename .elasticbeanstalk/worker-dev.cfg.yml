@@ -1,7 +1,7 @@
 AWSConfigurationTemplateVersion: 1.1.0.0
 EnvironmentConfigurationMetadata:
   DateCreated: '1511046297000'
-  DateModified: '1511244199017'
+  DateModified: '1512738937445'
   Description: Configuration created from the EB CLI using "eb config save".
 EnvironmentTier:
   Name: Worker
@@ -10,7 +10,7 @@ OptionSettings:
   aws:autoscaling:launchconfiguration:
     EC2KeyName: newsdiffs-key-pair
     IamInstanceProfile: newsdiffs-dev-role
-    InstanceType: t2.micro
+    InstanceType: t2.small
     SecurityGroups: newsdiffs-dev
   aws:elasticbeanstalk:application:environment:
     CONFIG_S3_KEY: dev/env-vars.sh
