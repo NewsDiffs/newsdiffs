@@ -161,11 +161,14 @@ def migrate(from_cursor, to_connection, to_cursor):
             to_connection.commit()
             logger.debug('Committed article %s', current_article.id)
 
-            # logging.debug(mem_top(width=200))
-            git_gc(current_article.git_dir)
+            previous_article_git_dir = current_article.git_dir
 
             current_article = make_article(row)
             logger.debug('Started reading article %s', current_article.id)
+
+            # logging.debug(mem_top(width=200))
+            if curr_row_number % 20 == 0 or current_article.git_dir != previous_article_git_dir:
+                git_gc(current_article.git_dir)
 
             current_versions[:] = [make_version(row)]
             logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
@@ -521,6 +524,7 @@ def configure_git(git_dir):
 
 
 def run_command(*args, **kwargs):
+    logger.debug('Running ' + ' '.join(args[0]))
     try:
         return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
     except subprocess.CalledProcessError as ex:
