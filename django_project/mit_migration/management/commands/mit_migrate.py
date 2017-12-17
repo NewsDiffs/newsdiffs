@@ -161,7 +161,7 @@ def migrate(from_cursor, to_connection, to_cursor):
             to_connection.commit()
             logger.debug('Committed article %s', current_article.id)
 
-            logging.debug(mem_top(width=200))
+            # logging.debug(mem_top(width=200))
             git_gc(current_article.git_dir)
 
             current_article = make_article(row)
@@ -246,13 +246,25 @@ def execute_query(cursor, query, *args):
 
 
 def make_article(row):
+    old_git_dir = row['git_dir']
+    initial_date = row['initial_date']
+
+    # Initially all articles where stored in a single Git repo.  For performance
+    # reasons, they were later split into repos by month.  But the initial
+    # articles were put into a repo under 'old'.  This repo is large and
+    # git gc is failing in it during migration.  So let's break up the old repo
+    # into months as part of the migration
+    if old_git_dir == 'old':
+        git_dir = initial_date.strftime('%Y-%m')
+    else:
+        git_dir = old_git_dir
     return Bag(
         id=row['article_id'],
         url=row['url'],
-        initial_date=row['initial_date'],
+        initial_date=initial_date,
         last_update=row['last_update'],
         last_check=row['last_check'],
-        git_dir=row['git_dir'],
+        git_dir=git_dir,
     )
 
 
@@ -454,7 +466,6 @@ def migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_da
     execute_query(to_cursor, version_query, version_data)
 
 
-
 def get_most_recent_commit_hash_that_modified_file(git_dir, filename):
     command_parts = ['git', 'log', '-n', '1', '--pretty=format:%h', filename]
     return run_command(command_parts, cwd=git_dir)
@@ -511,7 +522,7 @@ def configure_git(git_dir):
 
 def run_command(*args, **kwargs):
     try:
-        return subprocess.check_output(*args, **kwargs, stderr=subprocess.STDOUT)
+        return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
     except subprocess.CalledProcessError as ex:
         logger.warn(ex.output)
         raise
