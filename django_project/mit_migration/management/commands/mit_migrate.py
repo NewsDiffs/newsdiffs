@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import errno
 import logging
+import resource
 import subprocess
 import textwrap
 import os
@@ -43,11 +44,19 @@ class Command(BaseCommand):
     help = textwrap.dedent('''Migrate data from MIT data dump to AWS''').strip()
 
     def handle(self, *args, **options):
+        set_limits()
         migrate_until_done()
 
 
 class MigrationException(Exception):
     pass
+
+
+def set_limits():
+    # Limit the process to 1GiB of memory.  Some of Popens are growing the
+    # RAM usage unbounded and I don't know why
+    one_gibibyte = 1024**2
+    resource.setrlimit(resource.RLIMIT_RSS, (one_gibibyte, one_gibibyte))
 
 
 def migrate_until_done():
