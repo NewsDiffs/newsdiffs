@@ -268,6 +268,7 @@ def make_article(row):
         last_update=row['last_update'],
         last_check=row['last_check'],
         git_dir=git_dir,
+        old_git_dir=old_git_dir,
     )
 
 
@@ -377,7 +378,7 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
         migrate_version_text = get_version_text(
             from_version_data,
             article_url_to_filename(from_article_data.url),
-            os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.git_dir)
+            os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
         )
 
         filename = article_url_to_filename(to_article_data.url)
