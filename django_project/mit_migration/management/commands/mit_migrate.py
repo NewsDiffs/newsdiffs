@@ -185,7 +185,7 @@ def migrate(from_cursor, to_connection, to_cursor):
 def git_gc(git_dir):
     git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, git_dir)
     logger.debug('starting git garbage collection in %s', git_dir)
-    output = run_command(['git' 'gc'], cwd=git_dir, shell=True, close_fds=True, bufsize=-1)
+    output = run_command(['git', 'gc'], cwd=git_dir, shell=True, close_fds=True, bufsize=-1)
     logger.debug('done with git garbage collection: %s', output)
 
 
@@ -525,7 +525,9 @@ def configure_git(git_dir):
 
 
 def run_command(*args, **kwargs):
-    logger.debug('Running ' + ' '.join(args[0]))
+    command = ' '.join(args[0])
+    cwd = kwargs.get('cwd', os.getcwd())
+    logger.debug('Running %s in %s' % (command, cwd))
     try:
         return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
     except subprocess.CalledProcessError as ex:
