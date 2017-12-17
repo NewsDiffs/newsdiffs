@@ -185,7 +185,7 @@ def migrate(from_cursor, to_connection, to_cursor):
 def git_gc(git_dir):
     git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, git_dir)
     logger.debug('starting git garbage collection in %s', git_dir)
-    output = run_command(['git', 'gc'], cwd=git_dir, shell=True, close_fds=True, bufsize=-1)
+    output = run_command(['git', 'gc'], cwd=git_dir, timeout=60*30, shell=True, close_fds=True, bufsize=-1)
     logger.debug('done with git garbage collection: %s', output)
 
 
@@ -528,8 +528,10 @@ def run_command(*args, **kwargs):
     command = ' '.join(args[0])
     cwd = kwargs.get('cwd', os.getcwd())
     logger.debug('Running %s in %s' % (command, cwd))
+    timeout = kwargs.get('timeout', 30)
     try:
-        return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
+        return subprocess.check_output(*args, stderr=subprocess.STDOUT,
+                                       timeout=timeout, shell=True, **kwargs)
     except subprocess.CalledProcessError as ex:
         logger.warn(ex.output)
         raise
@@ -586,7 +588,7 @@ def migrate_non_overlapping_article_versions(
             last_non_overlapping_version,
             # Use the migrate article in case the URLs differ by scheme
             article_url_to_filename(from_article_data.url),
-            os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.git_dir)
+            os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
         )
         extant_version_text = oldest_extant_version.text()
         # If the most recent non-overlapping version is equal to the
