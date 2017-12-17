@@ -528,10 +528,8 @@ def run_command(*args, **kwargs):
     command = ' '.join(args[0])
     cwd = kwargs.get('cwd', os.getcwd())
     logger.debug('Running %s in %s' % (command, cwd))
-    timeout = kwargs.get('timeout', 30)
     try:
-        return subprocess.check_output(*args, stderr=subprocess.STDOUT,
-                                       timeout=timeout, shell=True, **kwargs)
+        return subprocess.check_output(*args, **kwargs)
     except subprocess.CalledProcessError as ex:
         logger.warn(ex.output)
         raise
