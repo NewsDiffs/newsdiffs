@@ -525,11 +525,15 @@ def configure_git(git_dir):
 
 
 def run_command(*args, **kwargs):
-    command = ' '.join(args[0])
+    command_parts = args[0]
+    command = ' '.join(command_parts)
     cwd = kwargs.get('cwd', os.getcwd())
     logger.debug('Running %s in %s' % (command, cwd))
+    args_list = list(args)
+    # Set the memory limit to 1GiB to try and prevent crashing
+    args_list[0] = ['ulimit', '-m', 1024**2, '&&'] + command_parts
     try:
-        return subprocess.check_output(*args, **kwargs)
+        return subprocess.check_output(*args_list, **kwargs)
     except subprocess.CalledProcessError as ex:
         logger.warn(ex.output)
         raise
