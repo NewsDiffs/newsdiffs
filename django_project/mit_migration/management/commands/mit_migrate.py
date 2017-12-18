@@ -198,7 +198,7 @@ def migrate(from_cursor, to_connection, to_cursor):
 def git_gc(git_dir):
     git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, git_dir)
     logger.debug('starting git garbage collection in %s', git_dir)
-    output = run_command(['git', 'gc'], cwd=git_dir, timeout=60*30, shell=True, close_fds=True, bufsize=-1)
+    output = run_command(['git', 'gc'], cwd=git_dir, timeout=60*10)
     logger.debug('done with git garbage collection: %s', output)
 
 
