@@ -56,11 +56,11 @@ def set_limits():
     # Limit the process to 1GiB of memory.  Some of Popens are growing the
     # RAM usage unbounded and I don't know why
     one_mibibyte = 1024
-    resource.setrlimit(resource.RLIMIT_RSS, (one_mibibyte, one_mibibyte))
+    # resource.setrlimit(resource.RLIMIT_RSS, (one_mibibyte, one_mibibyte))
     # Heap size
-    resource.setrlimit(resource.RLIMIT_DATA, (one_mibibyte, one_mibibyte))
+    # resource.setrlimit(resource.RLIMIT_DATA, (one_mibibyte, one_mibibyte))
     # Stack size
-    resource.setrlimit(resource.RLIMIT_STACK, (one_mibibyte, one_mibibyte))
+    # resource.setrlimit(resource.RLIMIT_STACK, (one_mibibyte, one_mibibyte))
 
 
 def migrate_until_done():
