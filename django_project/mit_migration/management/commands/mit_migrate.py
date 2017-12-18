@@ -55,8 +55,12 @@ class MigrationException(Exception):
 def set_limits():
     # Limit the process to 1GiB of memory.  Some of Popens are growing the
     # RAM usage unbounded and I don't know why
-    one_gibibyte = 1024**2
-    resource.setrlimit(resource.RLIMIT_RSS, (one_gibibyte, one_gibibyte))
+    one_mibibyte = 1024
+    resource.setrlimit(resource.RLIMIT_RSS, (one_mibibyte, one_mibibyte))
+    # Heap size
+    resource.setrlimit(resource.RLIMIT_DATA, (one_mibibyte, one_mibibyte))
+    # Stack size
+    resource.setrlimit(resource.RLIMIT_STACK, (one_mibibyte, one_mibibyte))
 
 
 def migrate_until_done():
@@ -445,7 +449,6 @@ def git_commit_exists(commit_hash, git_dir):
         return True
 
 
-
 def get_version_for_commit_hash(to_cursor, git_commit):
     query = """
         select * from version where v = %(git_commit)s
@@ -540,7 +543,7 @@ def run_command(*args, **kwargs):
     logger.debug('Running %s in %s' % (command, cwd))
     args_list = list(args)
     # Set the memory limit to 1GiB to try and prevent crashing
-    args_list[0] = ['ulimit', '-m', 1024**2, '&&'] + command_parts
+    # args_list[0] = ['ulimit', '-m', str(1024**2), '&&'] + command_parts
     try:
         return subprocess.check_output(*args_list, **kwargs)
     except subprocess.CalledProcessError as ex:
