@@ -198,7 +198,7 @@ def migrate(from_cursor, to_connection, to_cursor):
 def git_gc(git_dir):
     git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, git_dir)
     logger.debug('starting git garbage collection in %s', git_dir)
-    output = run_command(['git', 'gc'], cwd=git_dir, timeout=60*10)
+    output = run_command(['git', 'gc', '--quiet'], cwd=git_dir)
     logger.debug('done with git garbage collection: %s', output)
 
 
@@ -541,11 +541,8 @@ def run_command(*args, **kwargs):
     command = ' '.join(command_parts)
     cwd = kwargs.get('cwd', os.getcwd())
     logger.debug('Running %s in %s' % (command, cwd))
-    args_list = list(args)
-    # Set the memory limit to 1GiB to try and prevent crashing
-    # args_list[0] = ['ulimit', '-m', str(1024**2), '&&'] + command_parts
     try:
-        return subprocess.check_output(*args_list, **kwargs)
+        return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
     except subprocess.CalledProcessError as ex:
         logger.warn(ex.output)
         raise
