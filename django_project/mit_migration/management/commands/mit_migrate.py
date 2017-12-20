@@ -22,7 +22,7 @@ eastern_timezone = pytz.timezone("US/Eastern")
 
 # If the migration fails in less than this amount of time, don't repeat it.
 # It may indicate that some error is occurring that will just continue forever.
-migrate_repeat_required_elapsed_time = timedelta(seconds=10)
+migrate_repeat_required_elapsed_time = timedelta(minutes=2)
 
 # Put the migrated article versions into a separate directory so that Git
 # operations don't conflict
@@ -196,7 +196,6 @@ def migrate(from_cursor, to_connection, to_cursor):
         to_connection.commit()
         logger.debug('Committed article %s', current_article.id)
 
-        last_migrated_article_id = get_last_migrated_article_id(to_cursor)
         row_count = query_migration_article_versions_count(from_cursor, cutoff)
 
 
@@ -415,7 +414,7 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
             migrated_commit_hash = get_migrated_commit_hash(to_cursor, from_version_data.id)
             if migrated_commit_hash:
                 # Check that the git commit from the migrated version exists
-                if not git_commit_exists(migrated_commit_hash, git_dir, filename):
+                if not git_commit_exists(migrated_commit_hash, git_dir):
                     raise MigrationException("version %s has been migrated, but its Git commit %s doesn't exist" % (from_version_data.id, migrated_commit_hash))
                 logger.warn("encountered file change while trying to migrate "
                             "version %s whhas been migrated, but since its Git "
@@ -435,7 +434,7 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
                 # then maybe we can emulate the change by finding the commit
                 # when the file last changed
                 previous_commit_hash = get_most_recent_commit_hash_that_modified_file(git_dir, filename)
-                version_migrating_previous_commit_hash = get_version_for_commit_hash(previous_commit_hash)
+                version_migrating_previous_commit_hash = get_version_for_commit_hash(to_cursor, previous_commit_hash)
                 if version_migrating_previous_commit_hash:
                     raise MigrationException("while trying to migrate version "
                                              "%s, found that it's file contents "
