@@ -81,8 +81,8 @@ def migrate_until_done():
             elapsed_time = datetime.now() - last_exception_datetime
             if elapsed_time < migrate_repeat_required_elapsed_time:
                 raise Exception('last exception was only %s ago, which is less '
-                             'than the required %s.  Exiting' % (elapsed_time,
-                                                                 migrate_repeat_required_elapsed_time))
+                                'than the required %s.  Exiting' % (elapsed_time,
+                                                                    migrate_repeat_required_elapsed_time))
             last_exception_datetime = datetime.now()
 
 
@@ -148,56 +148,63 @@ def migrate(from_cursor, to_connection, to_cursor):
     current_article = None
     current_versions = []
     row_count = query_migration_article_versions_count(from_cursor, cutoff)
-    logger.info('Starting migrating %s article/version rows', row_count)
-    query_migration_article_versions(from_cursor, cutoff)
     curr_row_number = 0
-    for row in from_cursor:
-        curr_row_number += 1
-        logger.debug('Processing article/version row %s / %s (%.2f%%)', curr_row_number, row_count, 100. * curr_row_number / row_count)
-        if not current_article:
-            current_article = make_article(row)
-            logger.debug('Started reading article %s', current_article.id)
+    while row_count > 0:
+        logger.info('Starting migrating %s article/version rows', row_count)
+        query_migration_article_versions(from_cursor, cutoff)
+        for row in from_cursor:
+            curr_row_number += 1
+            logger.debug('Processing article/version row %s / %s (%.2f%%)', curr_row_number, row_count, 100. * curr_row_number / row_count)
+            if not current_article:
+                current_article = make_article(row)
+                logger.debug('Started reading first article %s', current_article.id)
 
-            current_versions.append(make_version(row))
-            logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
-        elif current_article.id == row['article_id']:
-            current_versions.append(make_version(row))
-            logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
-        else:
-            logger.debug('Processing article %s with %s versions', current_article.id, len(current_versions))
-            process_article_versions(to_cursor, current_article,
-                                     current_versions)
-            last_migrated_article_id = current_article.id
-            logger.debug('Processed article %s', current_article.id)
+                current_versions.append(make_version(row))
+                logger.debug('Read first article %s version %s', current_article.id, current_versions[-1].id)
+            elif current_article.id == row['article_id']:
+                current_versions.append(make_version(row))
+                logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
+            else:
+                logger.debug('Processing article %s with %s versions', current_article.id, len(current_versions))
+                process_article_versions(to_cursor, current_article,
+                                         current_versions)
+                last_migrated_article_id = current_article.id
+                logger.debug('Processed article %s', current_article.id)
 
-            logger.debug('Committing article %s', current_article.id)
-            to_connection.commit()
-            logger.debug('Committed article %s', current_article.id)
+                logger.debug('Committing article %s', current_article.id)
+                to_connection.commit()
+                logger.debug('Committed article %s', current_article.id)
 
-            previous_article_git_dir = current_article.git_dir
+                previous_article_git_dir = current_article.git_dir
 
-            current_article = make_article(row)
-            logger.debug('Started reading article %s', current_article.id)
+                current_article = make_article(row)
+                logger.debug('Started reading article %s', current_article.id)
 
-            # logging.debug(mem_top(width=200))
-            if curr_row_number % 20 == 0 or current_article.git_dir != previous_article_git_dir:
-                git_gc(current_article.git_dir)
+                # logging.debug(mem_top(width=200))
+                if curr_row_number % 20 == 0 or current_article.git_dir != previous_article_git_dir:
+                    git_gc(current_article.git_dir)
 
-            current_versions[:] = [make_version(row)]
-            logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
+                current_versions[:] = [make_version(row)]
+                logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
+            logger.debug('Reading next row...')
 
-    logger.debug('Processing article %s', current_article.id)
-    process_article_versions(to_cursor, current_article, current_versions)
-    logger.debug('Processed article %s', current_article.id)
+        logger.debug('Processing article %s', current_article.id)
+        process_article_versions(to_cursor, current_article, current_versions)
+        logger.debug('Processed article %s', current_article.id)
 
-    logger.debug('Committing article %s', current_article.id)
-    to_connection.commit()
-    logger.debug('Committed article %s', current_article.id)
+        logger.debug('Committing article %s', current_article.id)
+        to_connection.commit()
+        logger.debug('Committed article %s', current_article.id)
+
+        last_migrated_article_id = get_last_migrated_article_id(to_cursor)
+        row_count = query_migration_article_versions_count(from_cursor, cutoff)
 
 
 def git_gc(git_dir):
     git_dir = os.path.join(os.environ['ARTICLES_DIR_ROOT'], MIGRATED_VERSIONS_GIT_SUBDIR, git_dir)
     logger.debug('starting git garbage collection in %s', git_dir)
+    # without --quiet, there is a lot of dynamic (curses?) output, and I think it's causing a hang
+    # I think this is relevant: https://thraxil.org/users/anders/posts/2008/03/13/Subprocess-Hanging-PIPE-is-your-enemy/
     output = run_command(['git', 'gc', '--quiet'], cwd=git_dir)
     logger.debug('done with git garbage collection: %s', output)
 
@@ -249,6 +256,7 @@ def query_migration_article_versions(from_cursor, cutoff):
             -- use >= so that we retry all the versions, in case only some versions were migrated
             and a.id >= %(last_migrated_article_id)s
         order by a.id, v.date
+        limit 1000
     """
     execute_query(from_cursor, article_query, dict(cutoff=cutoff, last_migrated_article_id=last_migrated_article_id))
 
@@ -356,14 +364,16 @@ def migrate_article(to_cursor, from_article_data):
         )
         execute_query(to_cursor, article_query, article_data)
 
-        execute_query(to_cursor, 'select last_insert_id() as article_id')
-        article_id = to_cursor.fetchone()['article_id']
+        # execute_query(to_cursor, 'select last_insert_id() as article_id')
+        # article_id = to_cursor.fetchone()['article_id']
+
         # Try to avoid MySQL error 2014 "Commands out of sync; you can't run this command now"
-        to_cursor.fetchall()
+        # to_cursor.fetchall()
 
         # Can we just use this property?
-        logger.debug('last_insert_id: %s; to_cursor.lastrowid: %s', article_id, to_cursor.lastrowid)
+        # logger.debug('last_insert_id: %s; to_cursor.lastrowid: %s', article_id, to_cursor.lastrowid)
 
+        article_id = to_cursor.lastrowid
         migrated_article_data = Bag(id=article_id, url=from_article_data.url)
     return migrated_article_data
 
@@ -537,10 +547,10 @@ def configure_git(git_dir):
 
 
 def run_command(*args, **kwargs):
-    command_parts = args[0]
-    command = ' '.join(command_parts)
+    command = args[0]
+    command_str = command if isinstance(command, basestring) else ' '.join(command)
     cwd = kwargs.get('cwd', os.getcwd())
-    logger.debug('Running %s in %s' % (command, cwd))
+    logger.debug('Running %s in %s' % (command_str, cwd))
     try:
         return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
     except subprocess.CalledProcessError as ex:
