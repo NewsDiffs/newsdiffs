@@ -63,14 +63,15 @@ LOGGING = {
         }
     },
 }
+
 if os.environ.get('LOG_FILE_PATH', None):
     # Log to the file in prod
     LOGGING['handlers'][handlers.file] = {
         'level': os.environ['LOG_FILE_LOG_LEVEL'],
-        'class': 'logging.handlers.RotatingFileHandler',
+        'class': 'logging.handlers.TimedRotatingFileHandler',
         'filename': os.environ['LOG_FILE_PATH'],
-        'maxBytes': os.environ.get('LOG_FILE_MAX_BYTES', 32 * 1024 * 1024),
-        'backupCount': 1,
+        'when': 'midnight',
+        'utc': True,
         'formatter': formatters.verbose,
     }
     LOGGING['root']['handlers'] += [handlers.file]
