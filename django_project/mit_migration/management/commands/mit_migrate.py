@@ -597,7 +597,7 @@ def migrate_non_overlapping_article_versions(
 ):
     oldest_extant_version = get_oldest_extant_version(extant_to_article)
     last_non_overlapping_version_index = -1
-    # The versions should be sorted by date
+    # The version_datas should be sorted by date
     for i, version in enumerate(from_version_datas):
         if version.date > oldest_extant_version.date:
             last_non_overlapping_version_index = i - 1
@@ -612,7 +612,8 @@ def migrate_non_overlapping_article_versions(
         )
         extant_version_text = oldest_extant_version.text()
         # If the most recent non-overlapping version is equal to the
-        # one we already have, take the one before it
+        # one we already have, take the one before it.
+        # Assume that it differs from the one before it.
         if migrate_version_text == extant_version_text:
             last_non_overlapping_version_index -= 1
         # Check again that such a version actually exists since we updated the
@@ -620,8 +621,12 @@ def migrate_non_overlapping_article_versions(
         if last_non_overlapping_version_index > -1:
             non_overlapping_versions = \
                 from_version_datas[:last_non_overlapping_version_index + 1]
+            logger.info('Found %s non-overlapping versions.  Beginning migration.', (len(non_overlapping_versions,)))
             migrate_versions(to_cursor, from_article_data, non_overlapping_versions, extant_to_article)
+        else:
+            logger.info('The only non-overlapping version had equal text.  No migration of versions will occur for old article ID %s (new article ID %s)', (from_article_data.id, extant_to_article.id))
     else:
+        logger.info('No overlap with extant versions, migrating all versions')
         migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
 
 
