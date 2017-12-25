@@ -492,7 +492,7 @@ def migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_da
 
 
 def get_most_recent_commit_hash_that_modified_file(git_dir, filename):
-    command_parts = ['git', 'log', '-n', '1', '--pretty=format:%h', filename]
+    command_parts = ['git', 'log', '-n', '1', '--pretty=format:%H', filename]
     return run_command(command_parts, cwd=git_dir)
 
 
