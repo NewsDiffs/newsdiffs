@@ -460,7 +460,7 @@ def git_commit_exists(commit_hash, git_dir):
 
 def get_version_for_commit_hash(to_cursor, git_commit):
     query = """
-        select * from version where v = %(git_commit)s
+        select *, id as version_id from version where v = %(git_commit)s
     """
     execute_query(to_cursor, query, dict(git_commit=git_commit))
     version_rows = to_cursor.fetchall()
