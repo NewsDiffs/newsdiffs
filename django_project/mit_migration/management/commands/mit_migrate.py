@@ -436,13 +436,12 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
                 previous_commit_hash = get_most_recent_commit_hash_that_modified_file(git_dir, filename)
                 version_migrating_previous_commit_hash = get_version_for_commit_hash(to_cursor, previous_commit_hash)
                 if version_migrating_previous_commit_hash:
-                    raise MigrationException("while trying to migrate version "
-                                             "%s, found that it's file contents "
-                                             "are already on disk AND the commit "
-                                             "that did so %s is already "
-                                             "migrated as version %s" % (
-                        from_version_data.id, previous_commit_hash,
-                        version_migrating_previous_commit_hash.id))
+                    logger.warn("while trying to migrate version %s, found that "
+                                "it's file contents are already on disk AND the "
+                                "commit that did so %s is already migrated as "
+                                "version %s.  Skipping migrating this version" % (
+                                    from_version_data.id, previous_commit_hash,
+                                    version_migrating_previous_commit_hash.id))
                 else:
                     # Create version using the previous commit hash
                     migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_data, previous_commit_hash)
@@ -474,8 +473,8 @@ def get_version_for_commit_hash(to_cursor, git_commit):
 
 def migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_data, commit_hash):
     version_query = """
-        insert into version (article_id, v, title, byline, date, boring, diff_json, is_migrated)
-        values (%(article_id)s, %(v)s, %(title)s, %(byline)s, %(date)s, %(boring)s, %(diff_json)s, TRUE)
+        insert into version (article_id, v, title, byline, date, boring, diff_json, is_migrated, migrated_commit_hash, migrated_version_id)
+        values (%(article_id)s, %(v)s, %(title)s, %(byline)s, %(date)s, %(boring)s, %(diff_json)s, TRUE, %(migrated_commit_hash)s, %(migrated_version_id)s)
     """
     version_data = dict(
         article_id=to_article_data.id,
