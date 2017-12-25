@@ -398,11 +398,15 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
 
     for from_version_data in from_version_datas:
 
-        migrate_version_text = get_version_text(
+        migrate_version_text = try_get_version_text(
             from_version_data,
             article_url_to_filename(from_article_data.url),
             os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
         )
+
+        if migrate_version_text is None:
+            logger.warn('Could not get version text for %s.  Skipping migrating this version', (from_version_data,))
+            continue
 
         filename = article_url_to_filename(to_article_data.url)
         version_path = os.path.join(git_dir, filename)
@@ -603,31 +607,67 @@ def migrate_non_overlapping_article_versions(
             last_non_overlapping_version_index = i - 1
             break
     if last_non_overlapping_version_index > -1:
-        last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
-        migrate_version_text = get_version_text(
-            last_non_overlapping_version,
-            # Use the migrate article in case the URLs differ by scheme
-            article_url_to_filename(from_article_data.url),
-            os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
-        )
-        extant_version_text = oldest_extant_version.text()
-        # If the most recent non-overlapping version is equal to the
-        # one we already have, take the one before it.
-        # Assume that it differs from the one before it.
-        if migrate_version_text == extant_version_text:
-            last_non_overlapping_version_index -= 1
-        # Check again that such a version actually exists since we updated the
-        # index
-        if last_non_overlapping_version_index > -1:
-            non_overlapping_versions = \
-                from_version_datas[:last_non_overlapping_version_index + 1]
-            logger.info('Found %s non-overlapping versions.  Beginning migration.', (len(non_overlapping_versions,)))
-            migrate_versions(to_cursor, from_article_data, non_overlapping_versions, extant_to_article)
+
+        migrate_version_text = None
+        while migrate_version_text is None and last_non_overlapping_version_index > -1:
+            last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
+            migrate_version_text = try_get_version_text(
+                last_non_overlapping_version,
+                # Use the migrate article in case the URLs differ by scheme
+                article_url_to_filename(from_article_data.url),
+                os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
+            )
+            if migrate_version_text is None:
+                last_non_overlapping_version_index -= 1
+        if migrate_version_text is None:
+            logger.warn('Despite version overlap time-wise, we were unable '
+                        'to get previous version text for any version of'
+                        ' old article %s (new article %s).  Migrating all versions',
+                        (from_article_data.id, extant_to_article.id))
+            migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
         else:
-            logger.info('The only non-overlapping version had equal text.  No migration of versions will occur for old article ID %s (new article ID %s)', (from_article_data.id, extant_to_article.id))
+            extant_version_text = oldest_extant_version.text()
+            # We have text for a previous version.  Now try and find the first
+            # previous version where the text differs.  If no previous versions
+            # have differing text, migrate the first version only
+            while (
+                migrate_version_text == extant_version_text or
+                migrate_version_text is None
+            ) and last_non_overlapping_version_index > -1:
+                last_non_overlapping_version_index -= 1
+                if last_non_overlapping_version_index > -1:
+                    last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
+                    migrate_version_text = try_get_version_text(
+                        last_non_overlapping_version,
+                        # Use the migrate article in case the URLs differ by scheme
+                        article_url_to_filename(from_article_data.url),
+                        os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
+                    )
+            if migrate_version_text == extant_version_text or last_non_overlapping_version_index == -1:
+                logger.info('No previous versions with text differing from '
+                            'extant versions was found.  Migrating first version '
+                            'only for old article ID %s (new article ID %s).',
+                            (from_article_data.id, extant_to_article.id))
+                migrate_versions(to_cursor, from_article_data, from_version_datas[:1], extant_to_article)
+            else:
+
+                non_overlapping_versions = \
+                    from_version_datas[:last_non_overlapping_version_index + 1]
+                logger.info('Found %s non-overlapping versions.  Beginning migration.', (len(non_overlapping_versions,)))
+                migrate_versions(to_cursor, from_article_data, non_overlapping_versions, extant_to_article)
+
     else:
         logger.info('No overlap with extant versions, migrating all versions')
         migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
+
+
+def try_get_version_text(version, filename, git_dir):
+    try:
+        return get_version_text(version, filename, git_dir)
+    except subprocess.CalledProcessError as ex:
+        if 'does not exist' in ex.output:
+            return None
+        raise
 
 
 def get_version_text(version, filename, git_dir):
