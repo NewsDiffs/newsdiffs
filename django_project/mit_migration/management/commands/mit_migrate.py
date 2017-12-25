@@ -190,6 +190,7 @@ def migrate(from_cursor, to_connection, to_cursor):
 
         logger.debug('Processing article %s', current_article.id)
         process_article_versions(to_cursor, current_article, current_versions)
+        last_migrated_article_id = current_article.id
         logger.debug('Processed article %s', current_article.id)
 
         logger.debug('Committing article %s', current_article.id)
@@ -417,7 +418,7 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
                 if not git_commit_exists(migrated_commit_hash, git_dir):
                     raise MigrationException("version %s has been migrated, but its Git commit %s doesn't exist" % (from_version_data.id, migrated_commit_hash))
                 logger.warn("encountered file change while trying to migrate "
-                            "version %s whhas been migrated, but since its Git "
+                            "version %s which has been migrated, but since its Git "
                             "commit %s exists we are resetting the change and "
                             "continuing" % (from_version_data.id, migrated_commit_hash))
                 run_command(['git', 'reset', '--hard'], cwd=git_dir)
