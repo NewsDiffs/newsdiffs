@@ -74,7 +74,7 @@ def migrate_until_done():
             is_done = connect_and_migrate()
         except Exception as ex:
             if isinstance(ex, MigrationException):
-                logger.error('Caught MigrationException, aborting')
+                logger.exception('Caught MigrationException, aborting')
                 raise
             logger.warn('Caught exception while migrating until done')
             logger.exception(ex)
