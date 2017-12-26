@@ -33,6 +33,18 @@ MIGRATION_VERSIONS_DIR = '/newsdiffs-efs/mit_migration/dump'
 # Help keep the migration moving forward by not re-reading migrated articles
 last_migrated_article_id = -1
 
+create_mit_migrate_issues = """
+create table mit_migrate_issues (
+    issue_id
+  , when
+  , message
+  , from_article_id
+  , to_article_id
+  , from_version_id
+  , to_version_id
+)
+"""
+
 
 class Command(BaseCommand):
     # option_list = BaseCommand.option_list + (
@@ -364,15 +376,6 @@ def migrate_article(to_cursor, from_article_data):
         )
         execute_query(to_cursor, article_query, article_data)
 
-        # execute_query(to_cursor, 'select last_insert_id() as article_id')
-        # article_id = to_cursor.fetchone()['article_id']
-
-        # Try to avoid MySQL error 2014 "Commands out of sync; you can't run this command now"
-        # to_cursor.fetchall()
-
-        # Can we just use this property?
-        # logger.debug('last_insert_id: %s; to_cursor.lastrowid: %s', article_id, to_cursor.lastrowid)
-
         article_id = to_cursor.lastrowid
         migrated_article_data = Bag(id=article_id, url=from_article_data.url)
     return migrated_article_data
@@ -422,8 +425,8 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
                 if not git_commit_exists(migrated_commit_hash, git_dir):
                     raise MigrationException("version %s has been migrated, but its Git commit %s doesn't exist" % (from_version_data.id, migrated_commit_hash))
                 logger.warn("encountered file change while trying to migrate "
-                            "version %s which has been migrated, but since its Git "
-                            "commit %s exists we are resetting the change and "
+                            "version %s, which has been migrated, but since its Git "
+                            "commit already %s exists we are resetting the change and "
                             "continuing" % (from_version_data.id, migrated_commit_hash))
                 run_command(['git', 'reset', '--hard'], cwd=git_dir)
             else:
@@ -599,66 +602,73 @@ def migrate_non_overlapping_article_versions(
         extant_to_article,
         from_version_datas
 ):
-    oldest_extant_version = get_oldest_extant_version(extant_to_article)
-    last_non_overlapping_version_index = -1
-    # The version_datas should be sorted by date
-    for i, version in enumerate(from_version_datas):
-        if version.date > oldest_extant_version.date:
-            last_non_overlapping_version_index = i - 1
-            break
-    if last_non_overlapping_version_index > -1:
-
-        migrate_version_text = None
-        while migrate_version_text is None and last_non_overlapping_version_index > -1:
-            last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
-            migrate_version_text = try_get_version_text(
-                last_non_overlapping_version,
-                # Use the migrate article in case the URLs differ by scheme
-                article_url_to_filename(from_article_data.url),
-                os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
-            )
-            if migrate_version_text is None:
-                last_non_overlapping_version_index -= 1
-        if migrate_version_text is None:
-            logger.warn('Despite version overlap time-wise, we were unable '
-                        'to get previous version text for any version of'
-                        ' old article %s (new article %s).  Migrating all versions',
-                        (from_article_data.id, extant_to_article.id))
-            migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
-        else:
-            extant_version_text = oldest_extant_version.text()
-            # We have text for a previous version.  Now try and find the first
-            # previous version where the text differs.  If no previous versions
-            # have differing text, migrate the first version only
-            while (
-                migrate_version_text == extant_version_text or
-                migrate_version_text is None
-            ) and last_non_overlapping_version_index > -1:
-                last_non_overlapping_version_index -= 1
-                if last_non_overlapping_version_index > -1:
-                    last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
-                    migrate_version_text = try_get_version_text(
-                        last_non_overlapping_version,
-                        # Use the migrate article in case the URLs differ by scheme
-                        article_url_to_filename(from_article_data.url),
-                        os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
-                    )
-            if migrate_version_text == extant_version_text or last_non_overlapping_version_index == -1:
-                logger.info('No previous versions with text differing from '
-                            'extant versions was found.  Migrating first version '
-                            'only for old article ID %s (new article ID %s).',
-                            (from_article_data.id, extant_to_article.id))
-                migrate_versions(to_cursor, from_article_data, from_version_datas[:1], extant_to_article)
-            else:
-
-                non_overlapping_versions = \
-                    from_version_datas[:last_non_overlapping_version_index + 1]
-                logger.info('Found %s non-overlapping versions.  Beginning migration.', (len(non_overlapping_versions,)))
-                migrate_versions(to_cursor, from_article_data, non_overlapping_versions, extant_to_article)
-
-    else:
-        logger.info('No overlap with extant versions, migrating all versions')
+    earliest_extant_version = get_earliest_extant_version(extant_to_article)
+    if not earliest_extant_version:
+        logger.info('despite extant article new article %s for old article ID %s, no extant versions. migrating all versions', extant_to_article.id, from_article_data.id)
         migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
+    else:
+        last_non_overlapping_version_index = -1
+
+        # (The version_datas must be sorted by date)
+        for i, version in reversed(list(enumerate(from_version_datas))):
+            if version.date < earliest_extant_version.date:
+                last_non_overlapping_version_index = i
+                break
+        if last_non_overlapping_version_index > -1:
+
+            # Get the latest version having text
+            migrate_version_text = None
+            while migrate_version_text is None and last_non_overlapping_version_index > -1:
+                last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
+                migrate_version_text = try_get_version_text(
+                    last_non_overlapping_version,
+                    # Use the migrate article in case the URLs differ by scheme
+                    article_url_to_filename(from_article_data.url),
+                    os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
+                )
+                if migrate_version_text is None:
+                    last_non_overlapping_version_index -= 1
+
+            if migrate_version_text is None:
+                logger.warn('Despite version overlap time-wise, we were unable '
+                            'to get previous version text for any version of'
+                            ' old article %s (new article %s).  Migrating all versions',
+                            from_article_data.id, extant_to_article.id)
+                migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
+            else:
+                extant_version_text = earliest_extant_version.text()
+                # We have text for a previous version.  Now try and find the first
+                # previous version where the text differs.  If no previous versions
+                # have differing text, migrate the first version only
+                while (
+                    migrate_version_text == extant_version_text or
+                    migrate_version_text is None
+                ) and last_non_overlapping_version_index > -1:
+                    last_non_overlapping_version_index -= 1
+                    if last_non_overlapping_version_index > -1:
+                        last_non_overlapping_version = from_version_datas[last_non_overlapping_version_index]
+                        migrate_version_text = try_get_version_text(
+                            last_non_overlapping_version,
+                            # Use the migrate article in case the URLs differ by scheme
+                            article_url_to_filename(from_article_data.url),
+                            os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
+                        )
+                if migrate_version_text == extant_version_text or last_non_overlapping_version_index == -1:
+                    logger.info('No previous versions with text differing from '
+                                'extant versions was found.  Migrating first version '
+                                'only for old article ID %s (new article ID %s).',
+                                (from_article_data.id, extant_to_article.id))
+                    first_version = from_version_datas[0]
+                    migrate_versions(to_cursor, from_article_data, [first_version], extant_to_article)
+                else:
+                    non_overlapping_versions = \
+                        from_version_datas[:last_non_overlapping_version_index + 1]
+                    logger.info('Found %s non-overlapping versions (out of %s total).  Beginning migration.', (len(non_overlapping_versions), len(from_version_datas)))
+                    migrate_versions(to_cursor, from_article_data, non_overlapping_versions, extant_to_article)
+
+        else:
+            logger.info('No overlap with extant versions, migrating all versions')
+            migrate_versions(to_cursor, from_article_data, from_version_datas, extant_to_article)
 
 
 def try_get_version_text(version, filename, git_dir):
@@ -675,8 +685,11 @@ def get_version_text(version, filename, git_dir):
     return run_command(['git', 'show', revision], cwd=git_dir)
 
 
-def get_oldest_extant_version(extant_article):
-    return models.Version.objects.filter(article_id=extant_article.id).order_by('date')[0]
+def get_earliest_extant_version(extant_article):
+    extant_versions = models.Version.objects.filter(article_id=extant_article.id).order_by('date')
+    if len(extant_versions) > 0:
+        return extant_versions[0]
+    return None
 
 
 def get_migrate_cutoff(to_cursor):
