@@ -194,7 +194,7 @@ def migrate(from_cursor, to_connection, to_cursor):
 
                 # logging.debug(mem_top(width=200))
                 if curr_row_number % 20 == 0 or current_article.git_dir != previous_article_git_dir:
-                    git_gc(current_article.git_dir)
+                    git_gc(previous_article_git_dir)
 
                 current_versions[:] = [make_version(row)]
                 logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
