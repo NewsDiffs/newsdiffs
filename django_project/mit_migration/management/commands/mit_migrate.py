@@ -3,7 +3,9 @@ import errno
 import logging
 import resource
 import subprocess
+import sys
 import textwrap
+import time
 import os
 
 from django.core.management.base import BaseCommand
@@ -32,6 +34,9 @@ MIGRATION_VERSIONS_DIR = '/newsdiffs-efs/mit_migration/dump'
 
 # Help keep the migration moving forward by not re-reading migrated articles
 last_migrated_article_id = -1
+
+max_git_attempts = 5
+git_lock_error_sleep_seconds = 5
 
 create_mit_migrate_issues = """
 create table mit_migrate_issues (
@@ -92,9 +97,10 @@ def migrate_until_done():
             logger.exception(ex)
             elapsed_time = datetime.now() - last_exception_datetime
             if elapsed_time < migrate_repeat_required_elapsed_time:
-                raise Exception('last exception was only %s ago, which is less '
-                                'than the required %s.  Exiting' % (elapsed_time,
-                                                                    migrate_repeat_required_elapsed_time))
+                logger.error('last exception was only %s ago, which is less '
+                             'than the required %s.  Exiting', elapsed_time,
+                             migrate_repeat_required_elapsed_time)
+                sys.exit(1)
             last_exception_datetime = datetime.now()
 
 
@@ -217,7 +223,7 @@ def git_gc(git_dir):
     logger.debug('starting git garbage collection in %s', git_dir)
     # without --quiet, there is a lot of dynamic (curses?) output, and I think it's causing a hang
     # I think this is relevant: https://thraxil.org/users/anders/posts/2008/03/13/Subprocess-Hanging-PIPE-is-your-enemy/
-    output = run_command(['git', 'gc', '--quiet'], cwd=git_dir)
+    output = run_git_command(['git', 'gc', '--quiet'], cwd=git_dir)
     logger.debug('done with git garbage collection: %s', output)
 
 
@@ -428,7 +434,7 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
                             "version %s, which has been migrated, but since its Git "
                             "commit already %s exists we are resetting the change and "
                             "continuing" % (from_version_data.id, migrated_commit_hash))
-                run_command(['git', 'reset', '--hard'], cwd=git_dir)
+                run_git_command(['git', 'reset', '--hard'], cwd=git_dir)
             else:
                 commit_hash = get_commit_hash(git_dir)
                 migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_data, commit_hash)
@@ -458,7 +464,7 @@ def migrate_versions(to_cursor, from_article_data, from_version_datas, to_articl
 def git_commit_exists(commit_hash, git_dir):
     try:
         # https://stackoverflow.com/a/31780867/39396
-        run_command(['git', 'cat-file', '-e', commit_hash + '^{commit}'], cwd=git_dir)
+        run_git_command(['git', 'cat-file', '-e', commit_hash + '^{commit}'], cwd=git_dir)
     except subprocess.CalledProcessError:
         return False
     else:
@@ -500,7 +506,7 @@ def migrate_version_with_commit_hash(to_cursor, from_version_data, to_article_da
 
 def get_most_recent_commit_hash_that_modified_file(git_dir, filename):
     command_parts = ['git', 'log', '-n', '1', '--pretty=format:%H', filename]
-    return run_command(command_parts, cwd=git_dir)
+    return run_git_command(command_parts, cwd=git_dir)
 
 
 def get_migrated_commit_hash(to_cursor, version_id):
@@ -517,7 +523,7 @@ def get_migrated_commit_hash(to_cursor, version_id):
 
 
 def get_commit_hash(git_dir):
-    return run_command(['git', 'rev-list', 'HEAD', '-n1'], cwd=git_dir).strip()
+    return run_git_command(['git', 'rev-list', 'HEAD', '-n1'], cwd=git_dir).strip()
 
 
 def make_dirs(path):
@@ -533,7 +539,7 @@ def make_dirs(path):
 def make_git_repo(path):
     make_dirs(path)
 
-    run_command(['git', 'init'], cwd=path)
+    run_git_command(['git', 'init'], cwd=path)
 
     # Create a file so that there is something to commit
     initial_commit_file = os.path.join(path, 'initial-commit-file')
@@ -541,15 +547,42 @@ def make_git_repo(path):
 
     configure_git(path)
 
-    run_command(['git', 'add', initial_commit_file], cwd=path)
-    run_command(['git', 'commit', '-m', 'Initial commit'], cwd=path)
+    run_git_command(['git', 'add', initial_commit_file], cwd=path)
+    run_git_command(['git', 'commit', '-m', 'Initial commit'], cwd=path)
 
 
 def configure_git(git_dir):
-    run_command(['git', 'config', 'user.email', 'migration@newsdiffs.org'],
+    run_git_command(['git', 'config', 'user.email', 'migration@newsdiffs.org'],
                 cwd=git_dir)
-    run_command(['git', 'config', 'user.name', 'NewsDiffs Migration'],
+    run_git_command(['git', 'config', 'user.name', 'NewsDiffs Migration'],
                 cwd=git_dir)
+
+
+def run_git_command(*args, **kwargs):
+    attempt_count = 0
+    while attempt_count < max_git_attempts:
+        try:
+            return run_command(*args, **kwargs)
+        except subprocess.CalledProcessError as ex:
+            # For some unknown reason occasionally there is a git index file hanging
+            # around. Try to wait for it to go away.
+            is_git_index_error = 'Another git process seems to be running in this repository' in ex.output
+            if is_git_index_error:
+                attempt_count += 1
+                if attempt_count < max_git_attempts:
+                    logger.debug('Git lock error during attempt number %s.  Sleeping %s seconds', attempt_count, git_lock_error_sleep_seconds)
+                    time.sleep(git_lock_error_sleep_seconds)
+                else:
+                    logger.debug('After %s attempts, deleting git index file and retrying one last time.')
+                    delete_git_index_file(kwargs['cwd'])
+                    return run_command(*args, **kwargs)
+            else:
+                raise
+
+
+def delete_git_index_file(git_dir):
+    git_index_lock_file_path = os.path.join(git_dir, '.git/index.lock')
+    run_command(['rm', '-f', git_index_lock_file_path])
 
 
 def run_command(*args, **kwargs):
@@ -577,12 +610,12 @@ def write_version_file(file_text, path):
 
 def commit_version_file(version_path, git_dir, url, date):
     command_parts = ['git', 'add', version_path]
-    output = run_command(command_parts, cwd=git_dir)
+    output = run_git_command(command_parts, cwd=git_dir)
     logger.info('%s: %s', ' '.join(command_parts), output)
 
     command_parts = ['git', 'commit', '-m', 'Migrating %s from %s' % (url, date)]
     try:
-        output = run_command(command_parts, cwd=git_dir)
+        output = run_git_command(command_parts, cwd=git_dir)
         logger.info('%s: %s', ' '.join(command_parts), output)
     except subprocess.CalledProcessError as ex:
         # If the file already had identical contents, don't worry.
@@ -682,7 +715,7 @@ def try_get_version_text(version, filename, git_dir):
 
 def get_version_text(version, filename, git_dir):
     revision = version.v + ':' + filename
-    return run_command(['git', 'show', revision], cwd=git_dir)
+    return run_git_command(['git', 'show', revision], cwd=git_dir)
 
 
 def get_earliest_extant_version(extant_article):
