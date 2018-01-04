@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import errno
 import logging
+import re
 import resource
 import subprocess
 import sys
@@ -206,7 +207,7 @@ def migrate(from_cursor, to_connection, to_cursor):
                 logger.debug('Read article %s version %s', current_article.id, current_versions[-1].id)
             logger.debug('Reading next row...')
 
-        logger.debug('Processing article %s', current_article.id)
+        logger.debug('Processing article %s with %s versions', current_article.id, len(current_versions))
         process_article_versions(to_cursor, current_article, current_versions)
         last_migrated_article_id = current_article.id
         logger.debug('Processed article %s', current_article.id)
@@ -553,48 +554,9 @@ def make_git_repo(path):
 
 def configure_git(git_dir):
     run_git_command(['git', 'config', 'user.email', 'migration@newsdiffs.org'],
-                cwd=git_dir)
+                    cwd=git_dir)
     run_git_command(['git', 'config', 'user.name', 'NewsDiffs Migration'],
-                cwd=git_dir)
-
-
-def run_git_command(*args, **kwargs):
-    attempt_count = 0
-    while attempt_count < max_git_attempts:
-        try:
-            return run_command(*args, **kwargs)
-        except subprocess.CalledProcessError as ex:
-            # For some unknown reason occasionally there is a git index file hanging
-            # around. Try to wait for it to go away.
-            is_git_index_error = 'Another git process seems to be running in this repository' in ex.output
-            if is_git_index_error:
-                attempt_count += 1
-                if attempt_count < max_git_attempts:
-                    logger.debug('Git lock error during attempt number %s.  Sleeping %s seconds', attempt_count, git_lock_error_sleep_seconds)
-                    time.sleep(git_lock_error_sleep_seconds)
-                else:
-                    logger.debug('After %s attempts, deleting git index file and retrying one last time.')
-                    delete_git_index_file(kwargs['cwd'])
-                    return run_command(*args, **kwargs)
-            else:
-                raise
-
-
-def delete_git_index_file(git_dir):
-    git_index_lock_file_path = os.path.join(git_dir, '.git/index.lock')
-    run_command(['rm', '-f', git_index_lock_file_path])
-
-
-def run_command(*args, **kwargs):
-    command = args[0]
-    command_str = command if isinstance(command, basestring) else ' '.join(command)
-    cwd = kwargs.get('cwd', os.getcwd())
-    logger.debug('Running %s in %s' % (command_str, cwd))
-    try:
-        return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
-    except subprocess.CalledProcessError as ex:
-        logger.warn(ex.output)
-        raise
+                    cwd=git_dir)
 
 
 def write_version_file(file_text, path):
@@ -687,11 +649,11 @@ def migrate_non_overlapping_article_versions(
                             os.path.join(MIGRATION_VERSIONS_DIR, from_article_data.old_git_dir)
                         )
                 if migrate_version_text == extant_version_text or last_non_overlapping_version_index == -1:
-                    logger.info('No previous versions with text differing from '
-                                'extant versions was found.  Migrating first version '
-                                'only for old article ID %s (new article ID %s).',
-                                (from_article_data.id, extant_to_article.id))
                     first_version = from_version_datas[0]
+                    logger.info('No previous versions with text differing from '
+                                'extant versions was found.  Migrating first version %s '
+                                'only for old article ID %s (new article ID %s).',
+                                first_version.id, from_article_data.id, extant_to_article.id)
                     migrate_versions(to_cursor, from_article_data, [first_version], extant_to_article)
                 else:
                     non_overlapping_versions = \
@@ -730,3 +692,69 @@ def get_migrate_cutoff(to_cursor):
     cutoff = to_cursor.fetchone()['cutoff']
     to_cursor.fetchall()
     return cutoff
+
+
+def run_git_command(*args, **kwargs):
+    attempt_count = 0
+    while attempt_count < max_git_attempts:
+        try:
+            return run_command(*args, **kwargs)
+        except subprocess.CalledProcessError as ex:
+            # For some unknown reason occasionally there is a git index file hanging
+            # around. Try to wait for it to go away.
+            is_git_index_error = 'Another git process seems to be running in this repository' in ex.output
+            if is_git_index_error:
+                logger.info('Reporting Git lock conflict information')
+                report_git_lock_conflict(ex.output)
+                attempt_count += 1
+                if attempt_count < max_git_attempts:
+                    logger.debug('Git lock error during attempt number %s.  Sleeping %s seconds', attempt_count, git_lock_error_sleep_seconds)
+                    time.sleep(git_lock_error_sleep_seconds)
+                else:
+                    logger.debug('After %s attempts, deleting git index file and retrying one last time.', attempt_count)
+                    delete_git_index_files(kwargs['cwd'])
+                    return run_command(*args, **kwargs)
+            else:
+                raise
+
+
+def delete_git_index_files(git_dir):
+    git_internal_dir = os.path.join(git_dir, '.git')
+    git_index_lock_file_path = os.path.join(git_internal_dir, 'index.lock')
+    run_command(['rm', '-f', git_index_lock_file_path])
+
+    git_refs_dir = os.path.join(git_internal_dir, 'refs')
+    git_master_ref_lock_file_path = os.path.join(git_refs_dir, 'heads', 'master.lock')
+    run_command(['rm', '-f', git_master_ref_lock_file_path])
+
+    # run_command(['find', git_refs_dir, '-type', 'f', '-name', '*.lock', '-delete'])
+
+
+def report_git_lock_conflict(err_output):
+    match = re.search(r"Unable to create '(.*)': File exists", err_output)
+    if match:
+        file_path = match.group(0)
+
+        fuser_output = run_command(['fuser', file_path])
+        pid_matches = re.findall('.*: (\d+).?', fuser_output)
+        pids = map(lambda m: m.group(0), pid_matches)
+
+        ps_output = run_command(['ps', ' '.join(pids)])
+
+        logger.warn('Processes using %s:', file_path)
+        logger.warn(ps_output)
+    else:
+        logger.warn('No file path match found.')
+
+
+
+def run_command(*args, **kwargs):
+    command = args[0]
+    command_str = command if isinstance(command, basestring) else ' '.join(command)
+    cwd = kwargs.get('cwd', os.getcwd())
+    logger.debug('Running %s in %s' % (command_str, cwd))
+    try:
+        return subprocess.check_output(*args, stderr=subprocess.STDOUT, **kwargs)
+    except subprocess.CalledProcessError as ex:
+        logger.warn(ex.output)
+        raise
