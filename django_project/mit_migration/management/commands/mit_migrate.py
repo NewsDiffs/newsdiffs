@@ -197,6 +197,7 @@ def migrate(from_cursor, to_connection, to_cursor):
                 previous_article_git_dir = current_article.git_dir
 
                 current_article = make_article(row)
+                # Why is this logging output not showing up?
                 logger.debug('Started reading article %s', current_article.id)
 
                 # logging.debug(mem_top(width=200))
@@ -705,7 +706,9 @@ def run_git_command(*args, **kwargs):
             is_git_index_error = 'Another git process seems to be running in this repository' in ex.output
             if is_git_index_error:
                 logger.info('Reporting Git lock conflict information')
-                report_git_lock_conflict(ex.output)
+                # TODO return pids using file from this method
+                # if none, then immediately try to delete
+                # report_git_lock_conflict(ex.output)
                 attempt_count += 1
                 if attempt_count < max_git_attempts:
                     logger.debug('Git lock error during attempt number %s.  Sleeping %s seconds', attempt_count, git_lock_error_sleep_seconds)
@@ -735,7 +738,15 @@ def report_git_lock_conflict(err_output):
     if match:
         file_path = match.group(1)
 
-        fuser_output = run_command(['fuser', file_path])
+        try:
+            fuser_output = run_command(['fuser', file_path])
+        except subprocess.CalledProcessError as ex:
+            # If no processes have the file open, it returns empty output with non-zero return code
+            if ex.output.strip() != '':
+                raise
+            logger.info('No processes using %s', file_path)
+            return
+
         pid_matches = re.findall('.*: (\d+).?', fuser_output)
         pids = map(lambda m: m.group(1), pid_matches)
 

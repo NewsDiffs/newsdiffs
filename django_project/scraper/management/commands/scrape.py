@@ -394,7 +394,7 @@ def get_update_delay(minutes_since_update):
     elif days_since_update < 360:
         return 60*24*30
     else:
-        return 60*24*365*1e5  #ignore old articles
+        return 60*24*365*1e5  # ignore old articles
 
 
 def update_versions(todays_repo, do_all=False):
