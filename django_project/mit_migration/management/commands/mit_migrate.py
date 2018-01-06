@@ -733,11 +733,11 @@ def delete_git_index_files(git_dir):
 def report_git_lock_conflict(err_output):
     match = re.search(r"Unable to create '(.*)': File exists", err_output)
     if match:
-        file_path = match.group(0)
+        file_path = match.group(1)
 
         fuser_output = run_command(['fuser', file_path])
         pid_matches = re.findall('.*: (\d+).?', fuser_output)
-        pids = map(lambda m: m.group(0), pid_matches)
+        pids = map(lambda m: m.group(1), pid_matches)
 
         ps_output = run_command(['ps', ' '.join(pids)])
 
